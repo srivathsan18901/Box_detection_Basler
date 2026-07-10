@@ -1,0 +1,49 @@
+C:\Users\Srivathsan Ganesan\source\repos\VisioNeo_3D\obj\Debug\net10.0-windows7.0\VisioNeo_3D.csproj.AssemblyReference.cache
+C:\Users\Srivathsan Ganesan\source\repos\VisioNeo_3D\obj\Debug\net10.0-windows7.0\VisioNeo_3D.csprojFakesResolveAssemblyReference.cache
+C:\Users\Srivathsan Ganesan\source\repos\VisioNeo_3D\obj\Debug\net10.0-windows7.0\VisioNeo_3D.Properties.Resources.resources
+C:\Users\Srivathsan Ganesan\source\repos\VisioNeo_3D\obj\Debug\net10.0-windows7.0\VisioNeo_3D.VisioNeo3D.resources
+C:\Users\Srivathsan Ganesan\source\repos\VisioNeo_3D\obj\Debug\net10.0-windows7.0\VisioNeo_3D.csproj.GenerateResource.cache
+C:\Users\Srivathsan Ganesan\source\repos\VisioNeo_3D\obj\Debug\net10.0-windows7.0\VisioNeo_3D.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Srivathsan Ganesan\source\repos\VisioNeo_3D\obj\Debug\net10.0-windows7.0\VisioNeo_3D.AssemblyInfoInputs.cache
+C:\Users\Srivathsan Ganesan\source\repos\VisioNeo_3D\obj\Debug\net10.0-windows7.0\VisioNeo_3D.AssemblyInfo.cs
+C:\Users\Srivathsan Ganesan\source\repos\VisioNeo_3D\obj\Debug\net10.0-windows7.0\VisioNeo_3D.csproj.CoreCompileInputs.cache
+D:\Srivathsan\Dev\VisioNeo_3D\bin\Debug\net10.0-windows7.0\Basler.Pylon.1.1.5.0.Fakes.dll
+D:\Srivathsan\Dev\VisioNeo_3D\bin\Debug\net10.0-windows7.0\Basler.Pylon.Blaze.1.8.0.0.Fakes.dll
+D:\Srivathsan\Dev\VisioNeo_3D\bin\Debug\net10.0-windows7.0\VisioNeo_3D.exe
+D:\Srivathsan\Dev\VisioNeo_3D\bin\Debug\net10.0-windows7.0\VisioNeo_3D.dll.config
+D:\Srivathsan\Dev\VisioNeo_3D\bin\Debug\net10.0-windows7.0\VisioNeo_3D.deps.json
+D:\Srivathsan\Dev\VisioNeo_3D\bin\Debug\net10.0-windows7.0\VisioNeo_3D.runtimeconfig.json
+D:\Srivathsan\Dev\VisioNeo_3D\bin\Debug\net10.0-windows7.0\VisioNeo_3D.dll
+D:\Srivathsan\Dev\VisioNeo_3D\bin\Debug\net10.0-windows7.0\VisioNeo_3D.pdb
+D:\Srivathsan\Dev\VisioNeo_3D\bin\Debug\net10.0-windows7.0\Microsoft.QualityTools.Testing.Fakes.dll
+D:\Srivathsan\Dev\VisioNeo_3D\bin\Debug\net10.0-windows7.0\S7.Net.dll
+D:\Srivathsan\Dev\VisioNeo_3D\bin\Debug\net10.0-windows7.0\cs\Microsoft.QualityTools.Testing.Fakes.resources.dll
+D:\Srivathsan\Dev\VisioNeo_3D\bin\Debug\net10.0-windows7.0\de\Microsoft.QualityTools.Testing.Fakes.resources.dll
+D:\Srivathsan\Dev\VisioNeo_3D\bin\Debug\net10.0-windows7.0\es\Microsoft.QualityTools.Testing.Fakes.resources.dll
+D:\Srivathsan\Dev\VisioNeo_3D\bin\Debug\net10.0-windows7.0\fr\Microsoft.QualityTools.Testing.Fakes.resources.dll
+D:\Srivathsan\Dev\VisioNeo_3D\bin\Debug\net10.0-windows7.0\it\Microsoft.QualityTools.Testing.Fakes.resources.dll
+D:\Srivathsan\Dev\VisioNeo_3D\bin\Debug\net10.0-windows7.0\ja\Microsoft.QualityTools.Testing.Fakes.resources.dll
+D:\Srivathsan\Dev\VisioNeo_3D\bin\Debug\net10.0-windows7.0\ko\Microsoft.QualityTools.Testing.Fakes.resources.dll
+D:\Srivathsan\Dev\VisioNeo_3D\bin\Debug\net10.0-windows7.0\pl\Microsoft.QualityTools.Testing.Fakes.resources.dll
+D:\Srivathsan\Dev\VisioNeo_3D\bin\Debug\net10.0-windows7.0\pt-BR\Microsoft.QualityTools.Testing.Fakes.resources.dll
+D:\Srivathsan\Dev\VisioNeo_3D\bin\Debug\net10.0-windows7.0\ru\Microsoft.QualityTools.Testing.Fakes.resources.dll
+D:\Srivathsan\Dev\VisioNeo_3D\bin\Debug\net10.0-windows7.0\tr\Microsoft.QualityTools.Testing.Fakes.resources.dll
+D:\Srivathsan\Dev\VisioNeo_3D\bin\Debug\net10.0-windows7.0\zh-Hans\Microsoft.QualityTools.Testing.Fakes.resources.dll
+D:\Srivathsan\Dev\VisioNeo_3D\bin\Debug\net10.0-windows7.0\zh-Hant\Microsoft.QualityTools.Testing.Fakes.resources.dll
+D:\Srivathsan\Dev\VisioNeo_3D\bin\Debug\net10.0-windows7.0\Basler.Pylon.Blaze.dll
+D:\Srivathsan\Dev\VisioNeo_3D\bin\Debug\net10.0-windows7.0\Basler.Pylon.dll
+D:\Srivathsan\Dev\VisioNeo_3D\obj\Debug\net10.0-windows7.0\VisioNeo_3D.csproj.AssemblyReference.cache
+D:\Srivathsan\Dev\VisioNeo_3D\obj\Debug\net10.0-windows7.0\VisioNeo_3D.csprojFakesResolveAssemblyReference.cache
+D:\Srivathsan\Dev\VisioNeo_3D\obj\Debug\net10.0-windows7.0\VisioNeo_3D.Properties.Resources.resources
+D:\Srivathsan\Dev\VisioNeo_3D\obj\Debug\net10.0-windows7.0\VisioNeo_3D.VisioNeo3D.resources
+D:\Srivathsan\Dev\VisioNeo_3D\obj\Debug\net10.0-windows7.0\VisioNeo_3D.csproj.GenerateResource.cache
+D:\Srivathsan\Dev\VisioNeo_3D\obj\Debug\net10.0-windows7.0\VisioNeo_3D.GeneratedMSBuildEditorConfig.editorconfig
+D:\Srivathsan\Dev\VisioNeo_3D\obj\Debug\net10.0-windows7.0\VisioNeo_3D.AssemblyInfoInputs.cache
+D:\Srivathsan\Dev\VisioNeo_3D\obj\Debug\net10.0-windows7.0\VisioNeo_3D.AssemblyInfo.cs
+D:\Srivathsan\Dev\VisioNeo_3D\obj\Debug\net10.0-windows7.0\VisioNeo_3D.csproj.CoreCompileInputs.cache
+D:\Srivathsan\Dev\VisioNeo_3D\obj\Debug\net10.0-windows7.0\VisioNeo.39EFFD41.Up2Date
+D:\Srivathsan\Dev\VisioNeo_3D\obj\Debug\net10.0-windows7.0\VisioNeo_3D.dll
+D:\Srivathsan\Dev\VisioNeo_3D\obj\Debug\net10.0-windows7.0\refint\VisioNeo_3D.dll
+D:\Srivathsan\Dev\VisioNeo_3D\obj\Debug\net10.0-windows7.0\VisioNeo_3D.pdb
+D:\Srivathsan\Dev\VisioNeo_3D\obj\Debug\net10.0-windows7.0\VisioNeo_3D.genruntimeconfig.cache
+D:\Srivathsan\Dev\VisioNeo_3D\obj\Debug\net10.0-windows7.0\ref\VisioNeo_3D.dll

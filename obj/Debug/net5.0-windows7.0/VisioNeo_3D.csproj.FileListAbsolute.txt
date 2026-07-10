@@ -1,0 +1,8 @@
+C:\Users\Srivathsan Ganesan\source\repos\VisioNeo_3D\obj\Debug\net5.0-windows7.0\VisioNeo_3D.csproj.AssemblyReference.cache
+C:\Users\Srivathsan Ganesan\source\repos\VisioNeo_3D\obj\Debug\net5.0-windows7.0\VisioNeo_3D.Properties.Resources.resources
+C:\Users\Srivathsan Ganesan\source\repos\VisioNeo_3D\obj\Debug\net5.0-windows7.0\VisioNeo_3D.VisioNeo3D.resources
+C:\Users\Srivathsan Ganesan\source\repos\VisioNeo_3D\obj\Debug\net5.0-windows7.0\VisioNeo_3D.csproj.GenerateResource.cache
+C:\Users\Srivathsan Ganesan\source\repos\VisioNeo_3D\obj\Debug\net5.0-windows7.0\VisioNeo_3D.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Srivathsan Ganesan\source\repos\VisioNeo_3D\obj\Debug\net5.0-windows7.0\VisioNeo_3D.AssemblyInfoInputs.cache
+C:\Users\Srivathsan Ganesan\source\repos\VisioNeo_3D\obj\Debug\net5.0-windows7.0\VisioNeo_3D.AssemblyInfo.cs
+C:\Users\Srivathsan Ganesan\source\repos\VisioNeo_3D\obj\Debug\net5.0-windows7.0\VisioNeo_3D.csproj.CoreCompileInputs.cache

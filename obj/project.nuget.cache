@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "dgSpecHash": "LnPTqnz+viM=",
+  "success": true,
+  "projectFilePath": "D:\\Srivathsan\\Dev\\Expo_2026\\VisioNeo_3D.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Srivathsan Ganesan\\.nuget\\packages\\hslcommunication\\12.8.3\\hslcommunication.12.8.3.nupkg.sha512",
+    "C:\\Users\\Srivathsan Ganesan\\.nuget\\packages\\microsoft.win32.systemevents\\10.0.3\\microsoft.win32.systemevents.10.0.3.nupkg.sha512",
+    "C:\\Users\\Srivathsan Ganesan\\.nuget\\packages\\newtonsoft.json\\13.0.1\\newtonsoft.json.13.0.1.nupkg.sha512",
+    "C:\\Users\\Srivathsan Ganesan\\.nuget\\packages\\opencvsharp4\\4.13.0.20260302\\opencvsharp4.4.13.0.20260302.nupkg.sha512",
+    "C:\\Users\\Srivathsan Ganesan\\.nuget\\packages\\opencvsharp4.extensions\\4.13.0.20260302\\opencvsharp4.extensions.4.13.0.20260302.nupkg.sha512",
+    "C:\\Users\\Srivathsan Ganesan\\.nuget\\packages\\opencvsharp4.runtime.win\\4.13.0.20260302\\opencvsharp4.runtime.win.4.13.0.20260302.nupkg.sha512",
+    "C:\\Users\\Srivathsan Ganesan\\.nuget\\packages\\runtime.linux-arm.runtime.native.system.io.ports\\6.0.0\\runtime.linux-arm.runtime.native.system.io.ports.6.0.0.nupkg.sha512",
+    "C:\\Users\\Srivathsan Ganesan\\.nuget\\packages\\runtime.linux-arm64.runtime.native.system.io.ports\\6.0.0\\runtime.linux-arm64.runtime.native.system.io.ports.6.0.0.nupkg.sha512",
+    "C:\\Users\\Srivathsan Ganesan\\.nuget\\packages\\runtime.linux-x64.runtime.native.system.io.ports\\6.0.0\\runtime.linux-x64.runtime.native.system.io.ports.6.0.0.nupkg.sha512",
+    "C:\\Users\\Srivathsan Ganesan\\.nuget\\packages\\runtime.native.system.io.ports\\6.0.0\\runtime.native.system.io.ports.6.0.0.nupkg.sha512",
+    "C:\\Users\\Srivathsan Ganesan\\.nuget\\packages\\runtime.osx-arm64.runtime.native.system.io.ports\\6.0.0\\runtime.osx-arm64.runtime.native.system.io.ports.6.0.0.nupkg.sha512",
+    "C:\\Users\\Srivathsan Ganesan\\.nuget\\packages\\runtime.osx-x64.runtime.native.system.io.ports\\6.0.0\\runtime.osx-x64.runtime.native.system.io.ports.6.0.0.nupkg.sha512",
+    "C:\\Users\\Srivathsan Ganesan\\.nuget\\packages\\s7netplus\\0.20.0\\s7netplus.0.20.0.nupkg.sha512",
+    "C:\\Users\\Srivathsan Ganesan\\.nuget\\packages\\system.drawing.common\\10.0.3\\system.drawing.common.10.0.3.nupkg.sha512",
+    "C:\\Users\\Srivathsan Ganesan\\.nuget\\packages\\system.io.ports\\6.0.0\\system.io.ports.6.0.0.nupkg.sha512",
+    "C:\\Users\\Srivathsan Ganesan\\.nuget\\packages\\system.memory\\4.6.3\\system.memory.4.6.3.nupkg.sha512",
+    "C:\\Users\\Srivathsan Ganesan\\.nuget\\packages\\toastr.winforms\\6.1.0\\toastr.winforms.6.1.0.nupkg.sha512"
+  ],
+  "logs": []
+}

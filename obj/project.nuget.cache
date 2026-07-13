@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "LnPTqnz+viM=",
+  "dgSpecHash": "xQRCBPKwras=",
   "success": true,
-  "projectFilePath": "D:\\Srivathsan\\Dev\\Expo_2026\\VisioNeo_3D.csproj",
+  "projectFilePath": "D:\\Srivathsan\\Dev\\Box_detection\\Box_detection_Basler\\VisioNeo_3D.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Srivathsan Ganesan\\.nuget\\packages\\hslcommunication\\12.8.3\\hslcommunication.12.8.3.nupkg.sha512",
     "C:\\Users\\Srivathsan Ganesan\\.nuget\\packages\\microsoft.win32.systemevents\\10.0.3\\microsoft.win32.systemevents.10.0.3.nupkg.sha512",

@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "D:\\Srivathsan\\Dev\\Expo_2026\\VisioNeo_3D.csproj": {}
+    "D:\\Srivathsan\\Dev\\Box_detection\\Box_detection_Basler\\VisioNeo_3D.csproj": {}
   },
   "projects": {
-    "D:\\Srivathsan\\Dev\\Expo_2026\\VisioNeo_3D.csproj": {
+    "D:\\Srivathsan\\Dev\\Box_detection\\Box_detection_Basler\\VisioNeo_3D.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\Srivathsan\\Dev\\Expo_2026\\VisioNeo_3D.csproj",
+        "projectUniqueName": "D:\\Srivathsan\\Dev\\Box_detection\\Box_detection_Basler\\VisioNeo_3D.csproj",
         "projectName": "VisioNeo_3D",
-        "projectPath": "D:\\Srivathsan\\Dev\\Expo_2026\\VisioNeo_3D.csproj",
+        "projectPath": "D:\\Srivathsan\\Dev\\Box_detection\\Box_detection_Basler\\VisioNeo_3D.csproj",
         "packagesPath": "C:\\Users\\Srivathsan Ganesan\\.nuget\\packages\\",
-        "outputPath": "D:\\Srivathsan\\Dev\\Expo_2026\\obj\\",
+        "outputPath": "D:\\Srivathsan\\Dev\\Box_detection\\Box_detection_Basler\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

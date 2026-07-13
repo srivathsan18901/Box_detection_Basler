@@ -385,34 +385,56 @@
             }
         }
 
-        private void SavePLC_Btn_Click(object sender, EventArgs e)
+        private async void SavePLC_Btn_Click(object sender, EventArgs e)
         {
+            if (!int.TryParse(PLC_Port_TB.Text.Trim(), out int port))
+            {
+                logger.Log("Invalid PLC Port", Color.Red);
+                return;
+            }
 
-            plcConfig.PlcIp =
-                PLC_IP_TB.Text.Trim();
-
-            plcConfig.PlcPort =
-                int.Parse(
-                    PLC_Port_TB.Text);
-
-            plcConfig.TriggerReg =
-                Cam_Trigger_TB.Text.Trim();
-
-            plcConfig.XReg =
-                X_Reg_TB.Text.Trim();
-
-            plcConfig.YReg =
-                Y_Reg_TB.Text.Trim();
-
-            plcConfig.ZReg =
-                Z_Reg_TB.Text.Trim();
+            plcConfig.PlcIp = PLC_IP_TB.Text.Trim();
+            plcConfig.PlcPort = port;
+            plcConfig.TriggerReg = Cam_Trigger_TB.Text.Trim();
+            plcConfig.XReg = X_Reg_TB.Text.Trim();
+            plcConfig.YReg = Y_Reg_TB.Text.Trim();
+            plcConfig.ZReg = Z_Reg_TB.Text.Trim();
 
             plcConfigService.Save(plcConfig);
 
-            logger.Log(
-                "PLC Configuration Saved",
-                Color.Green);
+            logger.Log("PLC Configuration Saved", Color.Green);
+
+            // Disconnect current PLC
+            mitsubishiService.Disconnect();
+
+            UpdatePLCStatus(PlcStatus.Disconnected);
+
+            // Connect using new settings
+            bool connected = await Task.Run(() =>
+            {
+                return mitsubishiService.Connect(
+                    plcConfig.PlcIp,
+                    plcConfig.PlcPort);
+            });
+
+            if (connected)
+            {
+                UpdatePLCStatus(PlcStatus.Connected);
+
+                logger.Log(
+                    $"Connected to PLC ({plcConfig.PlcIp}:{plcConfig.PlcPort})",
+                    Color.Green);
+            }
+            else
+            {
+                UpdatePLCStatus(PlcStatus.Disconnected);
+
+                logger.Log(
+                    $"Failed to connect to PLC ({plcConfig.PlcIp}:{plcConfig.PlcPort})",
+                    Color.Red);
+            }
         }
+
         private async void ReadPlc_Btn_Click(object sender, EventArgs e)
         {
             string address = PLCAddr_TB.Text.Trim();

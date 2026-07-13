@@ -22,8 +22,8 @@ namespace VisioNeo_3D.Services
             string json =
                 File.ReadAllText(filePath);
 
-            return JsonSerializer
-                .Deserialize<PlcConfig>(json);
+            return JsonSerializer.Deserialize<PlcConfig>(json)
+                   ?? new PlcConfig();
         }
 
         public void Save(PlcConfig config)

@@ -17,15 +17,24 @@ namespace VisioNeo_3D.Services
 
                 plc = new MelsecMcNet(ip, port);
 
+                plc.ConnectTimeOut = 3000;
+                plc.ReceiveTimeOut = 3000;
+
                 var result = plc.ConnectServer();
 
                 _isConnected = result.IsSuccess;
 
                 return _isConnected;
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine(ex.Message);
+
+                plc?.ConnectClose();
+                plc = null;
+
                 _isConnected = false;
+
                 return false;
             }
         }
@@ -38,32 +47,19 @@ namespace VisioNeo_3D.Services
 
         private string FormatAddress(string address)
         {
-            address = address.ToUpper().Trim();
+            if (string.IsNullOrWhiteSpace(address))
+                return null;
 
-            // Remove any spaces
-            address = address.Replace(" ", "");
+            address = address
+                .Trim()
+                .Replace(" ", "")
+                .ToUpper();
 
-            // Ensure proper format for different address types
-            if (address.StartsWith("D") || address.StartsWith("W"))
-            {
-                // Word addresses should be like D100, W100
-                if (!System.Text.RegularExpressions.Regex.IsMatch(address, @"^[DW]\d+$"))
-                {
-                    return null;
-                }
-            }
-            else if (address.StartsWith("M") || address.StartsWith("X") || address.StartsWith("Y"))
-            {
-                // Bit addresses should be like M100, X100, Y100
-                if (!System.Text.RegularExpressions.Regex.IsMatch(address, @"^[MXY]\d+$"))
-                {
-                    return null;
-                }
-            }
+            if (System.Text.RegularExpressions.Regex.IsMatch(address, @"^[DWMXY]\d+$"))
+                return address;
 
-            return address;
+            return null;
         }
-
 
         public bool WriteValue(string address, string value)
         {
@@ -71,7 +67,7 @@ namespace VisioNeo_3D.Services
             {
                 try
                 {
-                    if (!IsConnected())
+                    if (!CheckPLC())
                         return false;
 
                     address = FormatAddress(address);
@@ -87,7 +83,7 @@ namespace VisioNeo_3D.Services
                     }
                     else
                     {
-                        if (!ushort.TryParse(value, out ushort wordValue))
+                        if (!short.TryParse(value, out short wordValue))
                             return false;
 
                         result = plc.Write(address, wordValue);
@@ -104,33 +100,27 @@ namespace VisioNeo_3D.Services
             }
         }
 
-        public bool IsConnected()
+        private bool CheckPLC()
         {
             if (!_isConnected)
                 return false;
 
-            try
-            {
-                // Verify connection is still alive
-                var test = plc.ReadUInt16("D0");
-                if (!test.IsSuccess)
-                {
-                    _isConnected = false;
-                    return false;
-                }
-                return true;
-            }
-            catch
-            {
-                _isConnected = false;
+            if (plc == null)
                 return false;
-            }
+
+            return true;
         }
+
+        public bool IsConnected()
+        {
+            return _isConnected;
+        }
+
         public bool SendXYZ(string xReg, string yReg, string zReg, double x, double y, double z)
         {
             lock (_lockObject)
             {
-                if (!IsConnected())
+                if (!CheckPLC())
                     return false;
 
                 try
@@ -139,9 +129,22 @@ namespace VisioNeo_3D.Services
                     short yValue = (short)Math.Round(y);
                     short zValue = (short)Math.Round(z);
 
+                    xReg = FormatAddress(xReg);
+                    yReg = FormatAddress(yReg);
+                    zReg = FormatAddress(zReg);
+
+                    if (xReg == null || yReg == null || zReg == null)
+                        return false;
+
                     var r1 = plc.Write(xReg, xValue);
                     var r2 = plc.Write(yReg, yValue);
                     var r3 = plc.Write(zReg, zValue);
+
+                    if (!r1.IsSuccess)
+                    {
+                        _isConnected = false;
+                        return false;
+                    }
 
                     return r1.IsSuccess && r2.IsSuccess && r3.IsSuccess;
                 }
@@ -154,23 +157,14 @@ namespace VisioNeo_3D.Services
             }
         }
 
-
-        public string GetStatus()
-        {
-            if (plc == null)
-                return "Disconnected";
-
-            return _isConnected
-                ? "Connected"
-                : "Disconnected";
-        }
-
-
         public string ReadValue(string address)
         {
             try
             {
-                address = address.ToUpper();
+                address = FormatAddress(address);
+
+                if (address == null)
+                    return "ERR: Invalid PLC Address";
 
                 if (address.StartsWith("M") ||
                     address.StartsWith("X") ||
@@ -193,6 +187,7 @@ namespace VisioNeo_3D.Services
             }
             catch (Exception ex)
             {
+                _isConnected = false;
                 return "ERR:" + ex.Message;
             }
         }

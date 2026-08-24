@@ -413,7 +413,7 @@
                     $"Actual Box Size : " +
                     $"W={boxResult.ActualWidthMM:F1} mm  " +
                     $"L={boxResult.ActualLengthMM:F1} mm  " +
-                    $"H={boxResult.ActualHeightMM:F1} mm" +
+                    $"H={boxResult.ActualHeightMM:F1} mm " +
                     $"Angle:{boxResult.Angle:F1}°",
                     Color.Blue);
 
@@ -421,7 +421,7 @@
                     $"Detected Box Size : " +
                     $"W={boxResult.WidthMM:F2} mm  " +
                     $"L={boxResult.LengthMM:F2} mm  " +
-                    $"H={boxResult.HeightMM:F2} mm" +
+                    $"H={boxResult.HeightMM:F2} mm " +
                     $"Angle:{boxResult.Angle:F2}°",
                     Color.DarkGreen);
 

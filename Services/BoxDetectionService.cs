@@ -29,7 +29,7 @@ namespace VisioNeo_3D.Services
         private const double ACTUAL_WIDTH_MM = 300;
         private const double ACTUAL_LENGTH_MM = 250;
         private const double ACTUAL_HEIGHT_MM = 300;
-        private const double ConveyorPlaneZ = 860.0;
+        private const double REFERENCE_PLANE_Z = 450.0;
 
         private double mmPerPixelX;
         private double mmPerPixelY;
@@ -39,7 +39,7 @@ namespace VisioNeo_3D.Services
             Bitmap resultBmp = (Bitmap)source.Clone();
 
             Mat src = BitmapConverter.ToMat(source);
-            double measuredHeight = ConveyorPlaneZ - cameraZ;
+            double measuredHeight = REFERENCE_PLANE_Z - cameraZ;
 
 
             // Process only the upper 65% of the image
@@ -244,7 +244,7 @@ namespace VisioNeo_3D.Services
                         frameCenterY + 10);
 
                     g.DrawString(
-                                               $"BOX DETECTED\n" +
+                        $"BOX DETECTED\n" +
                         $"W: {ACTUAL_WIDTH_MM:F1} mm\n" +
                         $"L: {ACTUAL_LENGTH_MM:F1} mm\n" +
                         $"DX: {offsetX:F1} mm\n" +

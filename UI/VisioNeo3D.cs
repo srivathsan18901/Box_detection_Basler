@@ -168,7 +168,6 @@
             // Check PLC trigger
             await CheckPLCTriggerAsync();
         }
-
         private async Task CheckPLCTriggerAsync()
         {
             if (_triggerReadBusy)
@@ -197,23 +196,38 @@
                     return;
                 }
 
-                bool triggerActive = value.Trim() == "1";
+                bool currentTriggerState = value.Trim() == "1";
 
-                // Rising edge detection
-                if (triggerActive && !_lastTriggerState)
+                // Detect ONLY rising edge: 0 -> 1
+                bool risingEdge =
+                    currentTriggerState && !_lastTriggerState;
+
+                // IMPORTANT:
+                // Update state immediately so that keeping D101 = 1
+                // will NOT generate another trigger.
+                _lastTriggerState = currentTriggerState;
+
+                if (!risingEdge)
+                    return;
+
+                logger.Log(
+                    $"PLC Rising Edge Detected: {triggerAddress} = 1",
+                    Color.Blue);
+
+                // Prevent another capture while current capture is running
+                if (_captureInProgress)
                 {
                     logger.Log(
-                        $"PLC Trigger Received: {triggerAddress} = 1",
-                        Color.Blue);
+                        "Capture already in progress. Trigger ignored.",
+                        Color.Orange);
 
-                    await Task.Run(() =>
-                    {
-                        CaptureAndProcess();
-                    });
+                    return;
                 }
 
-                // Store current trigger state
-                _lastTriggerState = triggerActive;
+                await Task.Run(() =>
+                {
+                    CaptureAndProcess();
+                });
             }
             catch (Exception ex)
             {
@@ -226,7 +240,6 @@
                 _triggerReadBusy = false;
             }
         }
-
         private void VisioNeo3D_MouseDown(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left)

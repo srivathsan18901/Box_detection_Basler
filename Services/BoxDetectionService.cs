@@ -47,7 +47,7 @@ namespace VisioNeo_3D.Services
                 0,
                 0,
                 src.Width,
-                (int)(src.Height * 0.65));
+                (int)(src.Height * 0.80));
 
             src = new Mat(src, roi);
 
@@ -244,8 +244,14 @@ namespace VisioNeo_3D.Services
                         frameCenterY + 10);
 
                     g.DrawString(
-                        $"DX:{offsetX:F1} DY:{offsetY:F1} ANG:{angle:F1}°",
-                        SystemFonts.DefaultFont,
+                                               $"BOX DETECTED\n" +
+                        $"W: {ACTUAL_WIDTH_MM:F1} mm\n" +
+                        $"L: {ACTUAL_LENGTH_MM:F1} mm\n" +
+                        $"DX: {offsetX:F1} mm\n" +
+                        $"DY: {offsetY:F1} mm\n" +
+                        $"DZ: {offsetZ:F1} mm\n" +
+                        $"ANGLE: {angle:F1}°",
+                    SystemFonts.DefaultFont,
                         Brushes.Red,
                         10,
                         10);

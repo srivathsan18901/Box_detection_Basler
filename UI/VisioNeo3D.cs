@@ -419,9 +419,10 @@
 
                 logger.Log(
                     $"Detected Box Size : " +
-                    $"W={boxResult.WidthMM:F1} mm  " +
-                    $"L={boxResult.LengthMM:F1} mm  " +
-                    $"H={boxResult.HeightMM:F1} mm" + $"Angle:{boxResult.Angle:F1}°",
+                    $"W={boxResult.WidthMM:F2} mm  " +
+                    $"L={boxResult.LengthMM:F2} mm  " +
+                    $"H={boxResult.HeightMM:F2} mm" +
+                    $"Angle:{boxResult.Angle:F2}°",
                     Color.DarkGreen);
 
                 // Update UI

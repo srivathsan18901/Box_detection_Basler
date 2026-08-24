@@ -42,6 +42,9 @@
         private float latestX;
         private float latestY;
         private float latestZ;
+        private bool _lastTriggerState = false;
+        private bool _triggerReadBusy = false;
+        private bool _captureInProgress = false;
         public VisioNeo3D()
         {
             InitializeComponent();
@@ -54,7 +57,9 @@
             visionService = new VisionProcessingService(logger);
             boxDetectionService = new BoxDetectionService();
             plcTimer = new System.Windows.Forms.Timer();
-            plcTimer.Interval = 3000; // 1 second
+            plcTimer.Interval = 100; // 1 second
+
+
             plcTimer.Tick += PlcTimer_Tick;
             mitsubishiService = new MitsubishiPLCService();
             plcConfigService = new PlcConfigService();
@@ -81,6 +86,7 @@
             X_Reg_TB.Text = plcConfig.XReg;
             Y_Reg_TB.Text = plcConfig.YReg;
             Z_Reg_TB.Text = plcConfig.ZReg;
+            Angle_Reg_TB.Text = plcConfig.AngleReg;
 
             bool connected =
                 await Task.Run(() =>
@@ -117,42 +123,107 @@
             plcTimer.Start();
         }
 
-        private async void PlcTimer_Tick(
-            object sender,
-            EventArgs e)
+        private async void PlcTimer_Tick(object sender, EventArgs e)
         {
-            if (mitsubishiService.IsConnected())
-            {
-                retryCount = 0;
-                UpdatePLCStatus(PlcStatus.Connected);
+            // Prevent overlapping PLC reads
+            if (_triggerReadBusy)
                 return;
-            }
 
-            retryCount++;
+            if (!mitsubishiService.IsConnected())
+            {
+                retryCount++;
 
-            UpdatePLCStatus(
-                PlcStatus.Retrying);
+                UpdatePLCStatus(PlcStatus.Retrying);
 
-            PLC_status.Text =
-                $"PLC Retrying... ({retryCount})";
+                PLC_status.Text =
+                    $"PLC Retrying... ({retryCount})";
 
-            bool reconnect =
-                await Task.Run(() =>
+                bool reconnect = await Task.Run(() =>
                 {
                     return mitsubishiService.Connect(
                         plcConfig.PlcIp,
                         plcConfig.PlcPort);
                 });
 
-            if (reconnect)
-            {
-                retryCount = 0;
-                UpdatePLCStatus(
-                    PlcStatus.Connected);
+                if (reconnect)
+                {
+                    retryCount = 0;
 
+                    UpdatePLCStatus(
+                        PlcStatus.Connected);
+
+                    logger.Log(
+                        "PLC Reconnected",
+                        Color.Green);
+                }
+
+                return;
+            }
+
+            retryCount = 0;
+
+            UpdatePLCStatus(
+                PlcStatus.Connected);
+
+            // Check PLC trigger
+            await CheckPLCTriggerAsync();
+        }
+
+        private async Task CheckPLCTriggerAsync()
+        {
+            if (_triggerReadBusy)
+                return;
+
+            _triggerReadBusy = true;
+
+            try
+            {
+                string triggerAddress = plcConfig.TriggerReg;
+
+                string value = await Task.Run(() =>
+                {
+                    return mitsubishiService.ReadValue(triggerAddress);
+                });
+
+                if (string.IsNullOrEmpty(value))
+                    return;
+
+                if (value.StartsWith("ERR:"))
+                {
+                    logger.Log(
+                        $"Trigger Read Error: {value}",
+                        Color.Red);
+
+                    return;
+                }
+
+                bool triggerActive = value.Trim() == "1";
+
+                // Rising edge detection
+                if (triggerActive && !_lastTriggerState)
+                {
+                    logger.Log(
+                        $"PLC Trigger Received: {triggerAddress} = 1",
+                        Color.Blue);
+
+                    await Task.Run(() =>
+                    {
+                        CaptureAndProcess();
+                    });
+                }
+
+                // Store current trigger state
+                _lastTriggerState = triggerActive;
+            }
+            catch (Exception ex)
+            {
                 logger.Log(
-                    "PLC Reconnected",
-                    Color.Green);
+                    $"PLC Trigger Error: {ex.Message}",
+                    Color.Red);
+            }
+            finally
+            {
+                _triggerReadBusy = false;
             }
         }
 
@@ -293,57 +364,113 @@
             }));
         }
 
-        private void Cap_Btn_Click(object sender, EventArgs e)
+        private void CaptureAndProcess()
         {
-
-            if (latestFrame == null)
-            {
-                logger.Log("No image available", Color.Red);
+            if (_captureInProgress)
                 return;
+
+            _captureInProgress = true;
+
+            try
+            {
+                if (latestFrame == null)
+                {
+                    logger.Log(
+                        "No image available for capture",
+                        Color.Red);
+
+                    return;
+                }
+
+                logger.Log(
+                    "Capture triggered - Processing image...",
+                    Color.Blue);
+
+                // Clone latest frame so the camera thread
+                // cannot modify it while processing
+                using Bitmap captureFrame =
+                    (Bitmap)latestFrame.Clone();
+
+                var boxResult =
+                    boxDetectionService.DetectBox(
+                        captureFrame,
+                        latestZ);
+
+                logger.Log(
+                    $"Actual Box Size : " +
+                    $"W={boxResult.ActualWidthMM:F1} mm  " +
+                    $"L={boxResult.ActualLengthMM:F1} mm  " +
+                    $"H={boxResult.ActualHeightMM:F1} mm" +
+                    $"Angle:{boxResult.Angle:F1}°",
+                    Color.Blue);
+
+                logger.Log(
+                    $"Detected Box Size : " +
+                    $"W={boxResult.WidthMM:F1} mm  " +
+                    $"L={boxResult.LengthMM:F1} mm  " +
+                    $"H={boxResult.HeightMM:F1} mm" + $"Angle:{boxResult.Angle:F1}°",
+                    Color.DarkGreen);
+
+                // Update UI
+                BeginInvoke(new Action(() =>
+                {
+                    label1.Text =
+                        $"ΔX : {boxResult.OffsetX:F2} mm";
+
+                    label2.Text =
+                        $"ΔY : {boxResult.OffsetY:F2} mm";
+
+                    label3.Text =
+                        $"ΔZ : {boxResult.OffsetZ:F2} mm";
+
+                    Res_PB.Image?.Dispose();
+
+                    Res_PB.Image =
+                        boxResult.ResultImage;
+                }));
+
+                // Send XYZ to PLC
+                bool sent = mitsubishiService.SendXYZ(
+    plcConfig.XReg,
+    plcConfig.YReg,
+    plcConfig.ZReg,
+    plcConfig.AngleReg,
+    boxResult.OffsetX,
+    boxResult.OffsetY,
+    boxResult.OffsetZ,
+    boxResult.Angle);
+
+                if (sent)
+                {
+                    logger.Log(
+                        $"XYZ Sent -> " +
+                        $"X:{boxResult.OffsetX:F2}  " +
+                        $"Y:{boxResult.OffsetY:F2}  " +
+                        $"Z:{boxResult.OffsetZ:F2}" + $"Angle:{boxResult.Angle:F1}°",
+                        Color.Green);
+                }
+                else
+                {
+                    logger.Log(
+                        "Failed to send XYZ to PLC",
+                        Color.Red);
+                }
             }
-
-            var boxResult = boxDetectionService.DetectBox(latestFrame, latestZ);
-
-            logger.Log(
-                $"Actual Box Size    : W={boxResult.ActualWidthMM:F1} mm  " +
-                $"L={boxResult.ActualLengthMM:F1} mm  " +
-                $"H={boxResult.ActualHeightMM:F1} mm",
-                Color.Blue);
-
-            logger.Log(
-                $"Detected Box Size : W={boxResult.WidthMM:F1} mm  " +
-                $"L={boxResult.LengthMM:F1} mm  " +
-                $"H={boxResult.HeightMM:F1} mm",
-                Color.DarkGreen);
-
-            label1.Text = $"ΔX : {boxResult.OffsetX:F2} mm";
-            label2.Text = $"ΔY : {boxResult.OffsetY:F2} mm";
-            label3.Text = $"ΔZ : {boxResult.OffsetZ:F2} mm";
-
-            Res_PB.Image?.Dispose();
-            Res_PB.Image = boxResult.ResultImage;
-
-            // Send XYZ to PLC
-            bool sent = mitsubishiService.SendXYZ(
-                plcConfig.XReg,
-                plcConfig.YReg,
-                plcConfig.ZReg,
-                boxResult.OffsetX,
-                boxResult.OffsetY,
-                boxResult.OffsetZ);
-
-            if (sent)
+            catch (Exception ex)
             {
                 logger.Log(
-                    $"XYZ Sent -> X:{boxResult.OffsetX:F2} " +
-                    $"Y:{boxResult.OffsetY:F2} " +
-                    $"Z:{boxResult.OffsetZ:F2}",
-                    Color.Green);
+                    $"Capture Processing Error: {ex.Message}",
+                    Color.Red);
             }
-            else
+            finally
             {
-                logger.Log("Failed to send XYZ to PLC", Color.Red);
+                _captureInProgress = false;
             }
+        }
+
+        private void Cap_Btn_Click(object sender, EventArgs e)
+        {
+            CaptureAndProcess();
         }
 
         private void Res_PB_Click(object sender, EventArgs e)
@@ -399,6 +526,7 @@
             plcConfig.XReg = X_Reg_TB.Text.Trim();
             plcConfig.YReg = Y_Reg_TB.Text.Trim();
             plcConfig.ZReg = Z_Reg_TB.Text.Trim();
+            plcConfig.AngleReg = Angle_Reg_TB.Text.Trim();
 
             plcConfigService.Save(plcConfig);
 

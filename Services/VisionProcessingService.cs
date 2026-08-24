@@ -70,14 +70,14 @@ namespace VisioNeo_3D.Services
                 rotatedBag = result.box;
                 bagCenter = result.center;
 
-                if (rotatedBag.Size.Width == 0)
-                {
-                    if ((DateTime.Now - lastNoBagLog).TotalSeconds > 2)
-                    {
-                        lastNoBagLog = DateTime.Now;
-                        logger.Log("No bag detected in frame", DrawingColor.Orange);
-                    }
-                }
+                //if (rotatedBag.Size.Width == 0)
+                //{
+                //    if ((DateTime.Now - lastNoBagLog).TotalSeconds > 2)
+                //    {
+                //        lastNoBagLog = DateTime.Now;
+                //        logger.Log("No bag detected in frame", DrawingColor.Orange);
+                //    }
+                //}
             }
 
             else if (selectedComponent == 2)

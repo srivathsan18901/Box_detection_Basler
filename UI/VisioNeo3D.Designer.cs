@@ -67,6 +67,8 @@
             label11 = new Label();
             ReadPlc_Btn = new Button();
             writePLC_Btn = new Button();
+            Angle_Reg_TB = new TextBox();
+            label12 = new Label();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox2).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox3).BeginInit();
@@ -82,7 +84,7 @@
             pictureBox1.BackColor = Color.Transparent;
             pictureBox1.Location = new Point(12, 100);
             pictureBox1.Name = "pictureBox1";
-            pictureBox1.Size = new Size(397, 345);
+            pictureBox1.Size = new Size(538, 526);
             pictureBox1.TabIndex = 1;
             pictureBox1.TabStop = false;
             // 
@@ -149,7 +151,7 @@
             // toastbox
             // 
             toastbox.BorderStyle = BorderStyle.None;
-            toastbox.Location = new Point(1171, 100);
+            toastbox.Location = new Point(1275, 98);
             toastbox.Name = "toastbox";
             toastbox.Size = new Size(335, 219);
             toastbox.TabIndex = 7;
@@ -223,7 +225,7 @@
             // Res_PB
             // 
             Res_PB.BackColor = Color.Transparent;
-            Res_PB.Location = new Point(462, 100);
+            Res_PB.Location = new Point(566, 98);
             Res_PB.Name = "Res_PB";
             Res_PB.Size = new Size(703, 528);
             Res_PB.TabIndex = 14;
@@ -258,6 +260,8 @@
             // panel1
             // 
             panel1.BackColor = Color.Transparent;
+            panel1.Controls.Add(Angle_Reg_TB);
+            panel1.Controls.Add(label12);
             panel1.Controls.Add(SavePLC_Btn);
             panel1.Controls.Add(PLC_Port_TB);
             panel1.Controls.Add(Z_Reg_TB);
@@ -270,9 +274,9 @@
             panel1.Controls.Add(label7);
             panel1.Controls.Add(label6);
             panel1.Controls.Add(label5);
-            panel1.Location = new Point(1171, 325);
+            panel1.Location = new Point(1275, 323);
             panel1.Name = "panel1";
-            panel1.Size = new Size(335, 239);
+            panel1.Size = new Size(335, 303);
             panel1.TabIndex = 17;
             // 
             // SavePLC_Btn
@@ -280,7 +284,7 @@
             SavePLC_Btn.FlatStyle = FlatStyle.Flat;
             SavePLC_Btn.Font = new Font("Segoe UI Semibold", 9.75F, FontStyle.Bold | FontStyle.Italic, GraphicsUnit.Point, 0);
             SavePLC_Btn.ForeColor = SystemColors.Highlight;
-            SavePLC_Btn.Location = new Point(254, 201);
+            SavePLC_Btn.Location = new Point(255, 258);
             SavePLC_Btn.Name = "SavePLC_Btn";
             SavePLC_Btn.Size = new Size(75, 32);
             SavePLC_Btn.TabIndex = 29;
@@ -399,7 +403,7 @@
             // PLCAddr_TB
             // 
             PLCAddr_TB.BorderStyle = BorderStyle.FixedSingle;
-            PLCAddr_TB.Location = new Point(892, 40);
+            PLCAddr_TB.Location = new Point(1017, 22);
             PLCAddr_TB.Name = "PLCAddr_TB";
             PLCAddr_TB.Size = new Size(100, 23);
             PLCAddr_TB.TabIndex = 18;
@@ -407,7 +411,7 @@
             // DataPlc_TB
             // 
             DataPlc_TB.BorderStyle = BorderStyle.FixedSingle;
-            DataPlc_TB.Location = new Point(892, 69);
+            DataPlc_TB.Location = new Point(1017, 66);
             DataPlc_TB.Name = "DataPlc_TB";
             DataPlc_TB.Size = new Size(100, 23);
             DataPlc_TB.TabIndex = 19;
@@ -418,7 +422,7 @@
             label10.BackColor = Color.Transparent;
             label10.Font = new Font("Segoe UI Semibold", 12F, FontStyle.Bold | FontStyle.Italic, GraphicsUnit.Point, 0);
             label10.ForeColor = SystemColors.Highlight;
-            label10.Location = new Point(823, 41);
+            label10.Location = new Point(945, 22);
             label10.Name = "label10";
             label10.Size = new Size(67, 21);
             label10.TabIndex = 30;
@@ -430,7 +434,7 @@
             label11.BackColor = Color.Transparent;
             label11.Font = new Font("Segoe UI Semibold", 12F, FontStyle.Bold | FontStyle.Italic, GraphicsUnit.Point, 0);
             label11.ForeColor = SystemColors.Highlight;
-            label11.Location = new Point(841, 70);
+            label11.Location = new Point(966, 67);
             label11.Name = "label11";
             label11.Size = new Size(46, 21);
             label11.TabIndex = 31;
@@ -442,7 +446,7 @@
             ReadPlc_Btn.FlatStyle = FlatStyle.Flat;
             ReadPlc_Btn.Font = new Font("Segoe UI Semibold", 9.75F, FontStyle.Bold | FontStyle.Italic, GraphicsUnit.Point, 0);
             ReadPlc_Btn.ForeColor = SystemColors.Highlight;
-            ReadPlc_Btn.Location = new Point(998, 25);
+            ReadPlc_Btn.Location = new Point(1122, 16);
             ReadPlc_Btn.Name = "ReadPlc_Btn";
             ReadPlc_Btn.Size = new Size(75, 32);
             ReadPlc_Btn.TabIndex = 30;
@@ -456,7 +460,7 @@
             writePLC_Btn.FlatStyle = FlatStyle.Flat;
             writePLC_Btn.Font = new Font("Segoe UI Semibold", 9.75F, FontStyle.Bold | FontStyle.Italic, GraphicsUnit.Point, 0);
             writePLC_Btn.ForeColor = SystemColors.Highlight;
-            writePLC_Btn.Location = new Point(998, 62);
+            writePLC_Btn.Location = new Point(1123, 59);
             writePLC_Btn.Name = "writePLC_Btn";
             writePLC_Btn.Size = new Size(75, 32);
             writePLC_Btn.TabIndex = 32;
@@ -464,13 +468,33 @@
             writePLC_Btn.UseVisualStyleBackColor = false;
             writePLC_Btn.Click += writePLC_Btn_Click_1;
             // 
+            // Angle_Reg_TB
+            // 
+            Angle_Reg_TB.BorderStyle = BorderStyle.FixedSingle;
+            Angle_Reg_TB.Location = new Point(167, 188);
+            Angle_Reg_TB.Name = "Angle_Reg_TB";
+            Angle_Reg_TB.Size = new Size(157, 23);
+            Angle_Reg_TB.TabIndex = 31;
+            // 
+            // label12
+            // 
+            label12.AutoSize = true;
+            label12.BackColor = Color.Transparent;
+            label12.Font = new Font("Segoe UI Semibold", 12F, FontStyle.Bold | FontStyle.Italic, GraphicsUnit.Point, 0);
+            label12.ForeColor = SystemColors.Highlight;
+            label12.Location = new Point(18, 186);
+            label12.Name = "label12";
+            label12.Size = new Size(52, 21);
+            label12.TabIndex = 30;
+            label12.Text = "Angle";
+            // 
             // VisioNeo3D
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             BackgroundImage = (Image)resources.GetObject("$this.BackgroundImage");
             BackgroundImageLayout = ImageLayout.Stretch;
-            ClientSize = new Size(1509, 644);
+            ClientSize = new Size(1622, 644);
             ControlBox = false;
             Controls.Add(writePLC_Btn);
             Controls.Add(ReadPlc_Btn);
@@ -549,5 +573,7 @@
         private Label label11;
         private Button ReadPlc_Btn;
         private Button writePLC_Btn;
+        private TextBox Angle_Reg_TB;
+        private Label label12;
     }
 }

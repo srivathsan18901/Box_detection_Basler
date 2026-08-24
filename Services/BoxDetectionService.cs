@@ -21,6 +21,7 @@ namespace VisioNeo_3D.Services
         public double ActualWidthMM { get; set; }
         public double ActualLengthMM { get; set; }
         public double ActualHeightMM { get; set; }
+        public double Angle { get; set; }
     }
 
     public class BoxDetectionService
@@ -33,9 +34,7 @@ namespace VisioNeo_3D.Services
         private double mmPerPixelX;
         private double mmPerPixelY;
 
-        public BoxDetectionResult DetectBox(
-    Bitmap source,
-    float cameraZ)
+        public BoxDetectionResult DetectBox(Bitmap source, float cameraZ)
         {
             Bitmap resultBmp = (Bitmap)source.Clone();
 
@@ -163,6 +162,21 @@ namespace VisioNeo_3D.Services
             }
             RotatedRect box = bestBox;
 
+            double angle = box.Angle;
+
+            // Normalize angle based on the longer dimension
+            if (box.Size.Width < box.Size.Height)
+            {
+                angle += 90.0;
+            }
+
+            // Normalize to -90° to +90°
+            while (angle >= 90.0)
+                angle -= 180.0;
+
+            while (angle < -90.0)
+                angle += 180.0;
+
             Point2f[] pts = box.Points();
 
             //if (maxArea > 1000)
@@ -230,7 +244,7 @@ namespace VisioNeo_3D.Services
                         frameCenterY + 10);
 
                     g.DrawString(
-                        $"DX:{offsetX:F1} DY:{offsetY:F1}",
+                        $"DX:{offsetX:F1} DY:{offsetY:F1} ANG:{angle:F1}°",
                         SystemFonts.DefaultFont,
                         Brushes.Red,
                         10,
@@ -248,20 +262,34 @@ namespace VisioNeo_3D.Services
                     WidthMM = widthMM,
                     LengthMM = lengthMM,
                     HeightMM = measuredHeight,
+                    Angle = angle,
 
                     ActualWidthMM = ACTUAL_WIDTH_MM,
                     ActualLengthMM = ACTUAL_LENGTH_MM,
                     ActualHeightMM = ACTUAL_HEIGHT_MM
                 };
             }
-
             return new BoxDetectionResult
             {
                 ResultImage = resultBmp,
+
                 OffsetX = 0,
                 OffsetY = 0,
-                OffsetZ = 0
+                OffsetZ = 0,
+                Angle = 0
             };
+            if (bestContour == null)
+            {
+                return new BoxDetectionResult
+                {
+                    ResultImage = resultBmp,
+
+                    OffsetX = 0,
+                    OffsetY = 0,
+                    OffsetZ = 0,
+                    Angle = 0
+                };
+            }
         }
     }
 }

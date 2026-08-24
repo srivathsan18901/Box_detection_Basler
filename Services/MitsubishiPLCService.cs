@@ -116,7 +116,7 @@ namespace VisioNeo_3D.Services
             return _isConnected;
         }
 
-        public bool SendXYZ(string xReg, string yReg, string zReg, double x, double y, double z)
+        public bool SendXYZ(string xReg, string yReg, string zReg, string angleReg, double x, double y, double z, double angle)
         {
             lock (_lockObject)
             {
@@ -128,17 +128,25 @@ namespace VisioNeo_3D.Services
                     short xValue = (short)Math.Round(x);
                     short yValue = (short)Math.Round(y);
                     short zValue = (short)Math.Round(z);
+                    short angleValue = (short)Math.Round(angle);
 
                     xReg = FormatAddress(xReg);
                     yReg = FormatAddress(yReg);
                     zReg = FormatAddress(zReg);
+                    angleReg = FormatAddress(angleReg);
 
-                    if (xReg == null || yReg == null || zReg == null)
+                    if (xReg == null ||
+                        yReg == null ||
+                        zReg == null ||
+                        angleReg == null)
+                    {
                         return false;
+                    }
 
                     var r1 = plc.Write(xReg, xValue);
                     var r2 = plc.Write(yReg, yValue);
                     var r3 = plc.Write(zReg, zValue);
+                    var r4 = plc.Write(angleReg, angleValue);
 
                     if (!r1.IsSuccess)
                     {

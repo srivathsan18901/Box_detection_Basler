@@ -1,7 +1,7 @@
 {
-  "PlcIp": "192.168.1.93",
-  "PlcPort": 504,
-  "TriggerReg": "M100",
+  "PlcIp": "192.168.0.99",
+  "PlcPort": 501,
+  "TriggerReg": "D101",
   "XReg": "D100",
   "YReg": "D102",
   "ZReg": "D104"

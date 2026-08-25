@@ -30,6 +30,7 @@ namespace VisioNeo_3D.Services
         private const double ACTUAL_LENGTH_MM = 250;
         private const double ACTUAL_HEIGHT_MM = 300;
         private const double REFERENCE_DISTANCE_Z = 500.0;
+        private const double MM_PER_PIXEL = 0.60;
 
         private double mmPerPixelX;
         private double mmPerPixelY;
@@ -138,7 +139,7 @@ namespace VisioNeo_3D.Services
 
                 double score =
                       area
-                    - distanceX * 400
+                    - distanceX * 500
                     - distanceY * 100;
 
                 if (score > bestScore)
@@ -197,8 +198,8 @@ namespace VisioNeo_3D.Services
                 double widthMM = widthPx * mmPerPixelX;
                 double lengthMM = lengthPx * mmPerPixelY;
 
-                double offsetX = (boxCenterX - frameCenterX) * mmPerPixelX;
-                double offsetY = (boxCenterY - frameCenterY) * mmPerPixelY;
+                double offsetX = (boxCenterX - frameCenterX) * MM_PER_PIXEL;
+                double offsetY = (boxCenterY - frameCenterY) * MM_PER_PIXEL;
 
                 double detectedDistanceZ = cameraZ;
 

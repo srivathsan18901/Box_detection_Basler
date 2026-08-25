@@ -425,6 +425,14 @@
                     $"Angle:{boxResult.Angle:F2}°",
                     Color.DarkGreen);
 
+                logger.Log(
+                    $"POSITION -> " +
+                    $"X:{boxResult.OffsetX:F2} mm  " +
+                    $"Y:{boxResult.OffsetY:F2} mm  " +
+                    $"Z:{boxResult.OffsetZ:F2} mm  " +
+                    $"ANGLE:{boxResult.Angle:F2}°",
+                    Color.Green);
+
                 // Update UI
                 BeginInvoke(new Action(() =>
                 {

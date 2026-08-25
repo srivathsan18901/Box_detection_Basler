@@ -29,7 +29,7 @@ namespace VisioNeo_3D.Services
         private const double ACTUAL_WIDTH_MM = 300;
         private const double ACTUAL_LENGTH_MM = 250;
         private const double ACTUAL_HEIGHT_MM = 300;
-        private const double REFERENCE_PLANE_Z = 450.0;
+        private const double REFERENCE_DISTANCE_Z = 500.0;
 
         private double mmPerPixelX;
         private double mmPerPixelY;
@@ -39,7 +39,7 @@ namespace VisioNeo_3D.Services
             Bitmap resultBmp = (Bitmap)source.Clone();
 
             Mat src = BitmapConverter.ToMat(source);
-            double measuredHeight = REFERENCE_PLANE_Z - cameraZ;
+            //double measuredHeight = REFERENCE_PLANE_Z - cameraZ;
 
 
             // Process only the upper 65% of the image
@@ -200,9 +200,10 @@ namespace VisioNeo_3D.Services
                 double offsetX = (boxCenterX - frameCenterX) * mmPerPixelX;
                 double offsetY = (boxCenterY - frameCenterY) * mmPerPixelY;
 
+                double detectedDistanceZ = cameraZ;
 
                 double offsetZ =
-                    ACTUAL_HEIGHT_MM - measuredHeight;
+                    detectedDistanceZ - REFERENCE_DISTANCE_Z;
 
                 using (Graphics g = Graphics.FromImage(resultBmp))
                 {
@@ -263,11 +264,11 @@ namespace VisioNeo_3D.Services
 
                     OffsetX = offsetX,
                     OffsetY = offsetY,
-                    OffsetZ = ACTUAL_HEIGHT_MM - measuredHeight,
+                    OffsetZ = offsetZ,
 
                     WidthMM = widthMM,
                     LengthMM = lengthMM,
-                    HeightMM = measuredHeight,
+                    HeightMM = ACTUAL_HEIGHT_MM,
                     Angle = angle,
 
                     ActualWidthMM = ACTUAL_WIDTH_MM,

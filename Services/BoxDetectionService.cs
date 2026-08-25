@@ -138,7 +138,7 @@ namespace VisioNeo_3D.Services
 
                 double score =
                       area
-                    - distanceX * 500
+                    - distanceX * 400
                     - distanceY * 100;
 
                 if (score > bestScore)
@@ -203,7 +203,8 @@ namespace VisioNeo_3D.Services
                 double detectedDistanceZ = cameraZ;
 
                 double offsetZ =
-                    detectedDistanceZ - REFERENCE_DISTANCE_Z;
+                   REFERENCE_DISTANCE_Z - detectedDistanceZ;
+
 
                 using (Graphics g = Graphics.FromImage(resultBmp))
                 {

@@ -115,15 +115,197 @@ namespace VisioNeo_3D.Services
 
             if (rotatedBag.Size.Width > 0)
             {
-                int pixelIndex = bagCenter.Y * width + bagCenter.X;
-                int pointIndex = pixelIndex * 3;
+                List<float> validZValues = new List<float>();
 
-                X = pointCloud[pointIndex];
-                Y = pointCloud[pointIndex + 1];
-                Z = pointCloud[pointIndex + 2];
+                int radius = 10;
+
+                for (int dy = -radius; dy <= radius; dy++)
+                {
+                    for (int dx = -radius; dx <= radius; dx++)
+                    {
+                        int px = bagCenter.X + dx;
+                        int py = bagCenter.Y + dy;
+
+                        if (px < 0 || px >= width ||
+                            py < 0 || py >= height)
+                            continue;
+
+                        int pixelIndex = py * width + px;
+                        int pointIndex = pixelIndex * 3;
+
+                        if (pointIndex + 2 >= pointCloud.Length)
+                            continue;
+
+                        float pxX = pointCloud[pointIndex];
+                        float pxY = pointCloud[pointIndex + 1];
+                        float pxZ = pointCloud[pointIndex + 2];
+
+                        if (float.IsNaN(pxZ) ||
+                            float.IsInfinity(pxZ) ||
+                            pxZ <= 0)
+                            continue;
+
+                        validZValues.Add(pxZ);
+                    }
+                }
+
+                if (validZValues.Count > 0)
+                {
+                    Z = GetMedian(validZValues);
+
+                    // Also use center point's X/Y if valid
+                    int centerPixel =
+                        bagCenter.Y * width + bagCenter.X;
+
+                    int centerIndex =
+                        centerPixel * 3;
+
+                    if (centerIndex + 2 < pointCloud.Length)
+                    {
+                        X = pointCloud[centerIndex];
+                        Y = pointCloud[centerIndex + 1];
+                    }
+
+                    //logger.Log(
+                    //    $"3D Measurement -> " +
+                    //    $"X:{X:F2} mm " +
+                    //    $"Y:{Y:F2} mm " +
+                    //    $"Z:{Z:F2} mm " +
+                    //    $"Valid Points:{validZValues.Count}",
+                    //    DrawingColor.Green);
+                }
+                else
+                {
+                    X = 0;
+                    Y = 0;
+                    Z = 0;
+
+                    //logger.Log(
+                    //    "No valid Z points found around box center.",
+                    //    DrawingColor.Red);
+                }
             }
 
             return (bitmap, bagCenter, rotatedBag, X, Y, Z);
+        }
+
+        //public (float X, float Y, float Z, int ValidPoints) GetCenter3DMeasurement(IGrabResult grabResult)
+        //{
+        //    using var container = grabResult.Container;
+        //    using var rangeComponent = container[0];
+
+        //    int width = rangeComponent.Width;
+        //    int height = rangeComponent.Height;
+
+        //    float[] pointCloud =
+        //        rangeComponent.PixelData as float[];
+
+        //    if (pointCloud == null)
+        //    {
+        //        return (0, 0, 0, 0);
+        //    }
+
+        //    int centerX = width / 2;
+        //    int centerY = height / 2;
+
+        //    List<float> xValues = new List<float>();
+        //    List<float> yValues = new List<float>();
+        //    List<float> zValues = new List<float>();
+
+        //    // 5 x 5 area around image center
+        //    for (int dy = -2; dy <= 2; dy++)
+        //    {
+        //        for (int dx = -2; dx <= 2; dx++)
+        //        {
+        //            int x = centerX + dx;
+        //            int y = centerY + dy;
+
+        //            if (x < 0 || x >= width ||
+        //                y < 0 || y >= height)
+        //                continue;
+
+        //            int pixelIndex =
+        //                y * width + x;
+
+        //            int pointIndex =
+        //                pixelIndex * 3;
+
+        //            float px =
+        //                pointCloud[pointIndex];
+
+        //            float py =
+        //                pointCloud[pointIndex + 1];
+
+        //            float pz =
+        //                pointCloud[pointIndex + 2];
+
+        //            // Reject invalid points
+        //            if (float.IsNaN(px) ||
+        //                float.IsNaN(py) ||
+        //                float.IsNaN(pz))
+        //                continue;
+
+        //            if (float.IsInfinity(px) ||
+        //                float.IsInfinity(py) ||
+        //                float.IsInfinity(pz))
+        //                continue;
+
+        //            if (pz <= 0)
+        //                continue;
+
+        //            xValues.Add(px);
+        //            yValues.Add(py);
+        //            zValues.Add(pz);
+        //        }
+        //    }
+
+        //    if (zValues.Count == 0)
+        //    {
+        //        //logger.Log(
+        //        //    "3D Measurement -> No valid points",
+        //        //    DrawingColor.Red);
+
+        //        return (0, 0, 0, 0);
+        //    }
+
+        //    // Median is more stable than a single pixel
+        //    float medianX = GetMedian(xValues);
+        //    float medianY = GetMedian(yValues);
+        //    float medianZ = GetMedian(zValues);
+
+        //    //logger.Log(
+        //    //    $"3D Measurement -> " +
+        //    //    $"X:{medianX:F2} mm " +
+        //    //    $"Y:{medianY:F2} mm " +
+        //    //    $"Z:{medianZ:F2} mm " +
+        //    //    $"Valid Points:{zValues.Count}",
+        //    //    DrawingColor.Blue);
+
+        //    return (
+        //        medianX,
+        //        medianY,
+        //        medianZ,
+        //        zValues.Count);
+        //}
+
+        private float GetMedian(List<float> values)
+        {
+            if (values == null || values.Count == 0)
+                return 0;
+
+            values.Sort();
+
+            int middle = values.Count / 2;
+
+            if (values.Count % 2 == 0)
+            {
+                return (
+                    values[middle - 1] +
+                    values[middle]
+                ) / 2f;
+            }
+
+            return values[middle];
         }
 
         private (RotatedRect box, DrawingPoint center) DetectSugarBag(DrawingBitmap bmp)

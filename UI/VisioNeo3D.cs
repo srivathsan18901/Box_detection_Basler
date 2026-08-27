@@ -83,6 +83,8 @@
             ImgModCB.Visible = false;
             //toastbox.Visible = false;
             loaderPic.Visible = false;
+            Cap_Btn.Enabled = false;
+            Res_BTN.Enabled = false;
 
             ImgModCB.Items.Add("Intensity (Grayscale)");
             ImgModCB.Items.Add("Depth");
@@ -291,6 +293,8 @@
 
                 if (mCamera != null && mCamera.IsOpen)
                 {
+                    Cap_Btn.Enabled = true;
+                    Res_BTN.Enabled = true;
                     isConnected = true;
                     CnctBtn.Text = "Disconnect";
                     CnctBtn.ForeColor = Color.Red;
@@ -301,6 +305,9 @@
             }
             else
             {
+
+                Cap_Btn.Enabled = false;
+                Res_BTN.Enabled = false;
                 cameraService.Disconnect(mCamera);
             }
         }
@@ -371,14 +378,16 @@
             if (!grabResult.GrabSucceeded)
                 return;
 
-            var result = visionService.ProcessFrame(grabResult, selectedComponent);
+            var result =
+                visionService.ProcessFrame(
+                    grabResult,
+                    selectedComponent);
 
             Bitmap bitmap = result.bitmap;
 
             latestFrame?.Dispose();
             latestFrame = (Bitmap)bitmap.Clone();
 
-            // Save latest 3D coordinates
             latestX = result.X;
             latestY = result.Y;
             latestZ = result.Z;
@@ -691,7 +700,48 @@
 
         private void Res_BTN_Click(object sender, EventArgs e)
         {
+            CaptureResolutionImage();
             StartCalibration();
+        }
+
+        private void CaptureResolutionImage()
+        {
+            try
+            {
+                if (latestFrame == null)
+                {
+                    MessageBox.Show(
+                        "No camera image available.",
+                        "Resolution Calibration",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+
+                    return;
+                }
+
+                // Clone the latest camera frame
+                Bitmap resolutionImage = (Bitmap)latestFrame.Clone();
+
+                // Display raw image in Resolution PictureBox
+                Res_PB.Image?.Dispose();
+                Res_PB.Image = resolutionImage;
+
+                logger.Log(
+                    "Resolution image captured successfully.",
+                    Color.Blue);
+            }
+            catch (Exception ex)
+            {
+                logger.Log(
+                    $"Resolution capture error: {ex.Message}",
+                    Color.Red);
+
+                MessageBox.Show(
+                    $"Unable to capture resolution image.\n\n{ex.Message}",
+                    "Resolution Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
         }
 
         private void StartCalibration()

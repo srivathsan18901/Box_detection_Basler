@@ -43,8 +43,8 @@
             loaderPic = new PictureBox();
             label1 = new Label();
             label2 = new Label();
-            label3 = new Label();
-            label4 = new Label();
+            mmpp_Lbl = new Label();
+            mm = new Label();
             Res_PB = new PictureBox();
             Cap_Btn = new Button();
             PLC_status = new Label();
@@ -69,6 +69,7 @@
             label11 = new Label();
             ReadPlc_Btn = new Button();
             writePLC_Btn = new Button();
+            Res_BTN = new Button();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox2).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox3).BeginInit();
@@ -202,25 +203,25 @@
             label2.Size = new Size(0, 19);
             label2.TabIndex = 11;
             // 
-            // label3
+            // mmpp_Lbl
             // 
-            label3.AutoSize = true;
-            label3.BackColor = Color.Transparent;
-            label3.Font = new Font("Segoe UI Semibold", 10F, FontStyle.Bold);
-            label3.Location = new Point(587, 70);
-            label3.Name = "label3";
-            label3.Size = new Size(0, 19);
-            label3.TabIndex = 12;
+            mmpp_Lbl.AutoSize = true;
+            mmpp_Lbl.BackColor = Color.Transparent;
+            mmpp_Lbl.Font = new Font("Segoe UI Semibold", 10F, FontStyle.Bold);
+            mmpp_Lbl.Location = new Point(1368, 45);
+            mmpp_Lbl.Name = "mmpp_Lbl";
+            mmpp_Lbl.Size = new Size(0, 19);
+            mmpp_Lbl.TabIndex = 12;
             // 
-            // label4
+            // mm
             // 
-            label4.AutoSize = true;
-            label4.BackColor = Color.Transparent;
-            label4.Font = new Font("Segoe UI Semibold", 10F, FontStyle.Bold);
-            label4.Location = new Point(748, 71);
-            label4.Name = "label4";
-            label4.Size = new Size(0, 19);
-            label4.TabIndex = 13;
+            mm.AutoSize = true;
+            mm.BackColor = Color.Transparent;
+            mm.Font = new Font("Segoe UI Semibold", 10F, FontStyle.Bold);
+            mm.Location = new Point(596, 71);
+            mm.Name = "mm";
+            mm.Size = new Size(0, 19);
+            mm.TabIndex = 13;
             // 
             // Res_PB
             // 
@@ -231,6 +232,8 @@
             Res_PB.TabIndex = 14;
             Res_PB.TabStop = false;
             Res_PB.Click += Res_PB_Click;
+            Res_PB.Paint += Res_PB_Paint;
+            Res_PB.MouseMove += Res_PB_MouseMove;
             // 
             // Cap_Btn
             // 
@@ -488,6 +491,20 @@
             writePLC_Btn.UseVisualStyleBackColor = false;
             writePLC_Btn.Click += writePLC_Btn_Click_1;
             // 
+            // Res_BTN
+            // 
+            Res_BTN.BackColor = Color.Transparent;
+            Res_BTN.BackgroundImageLayout = ImageLayout.Center;
+            Res_BTN.Font = new Font("Noto Sans SC", 12F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            Res_BTN.ForeColor = Color.DodgerBlue;
+            Res_BTN.Location = new Point(1368, 8);
+            Res_BTN.Name = "Res_BTN";
+            Res_BTN.Size = new Size(112, 34);
+            Res_BTN.TabIndex = 33;
+            Res_BTN.Text = "Resolution";
+            Res_BTN.UseVisualStyleBackColor = false;
+            Res_BTN.Click += Res_BTN_Click;
+            // 
             // VisioNeo3D
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -496,6 +513,7 @@
             BackgroundImageLayout = ImageLayout.Stretch;
             ClientSize = new Size(1622, 644);
             ControlBox = false;
+            Controls.Add(Res_BTN);
             Controls.Add(writePLC_Btn);
             Controls.Add(ReadPlc_Btn);
             Controls.Add(label11);
@@ -506,8 +524,8 @@
             Controls.Add(PLC_status);
             Controls.Add(Cap_Btn);
             Controls.Add(Res_PB);
-            Controls.Add(label4);
-            Controls.Add(label3);
+            Controls.Add(mm);
+            Controls.Add(mmpp_Lbl);
             Controls.Add(label2);
             Controls.Add(label1);
             Controls.Add(loaderPic);
@@ -549,8 +567,8 @@
         private PictureBox loaderPic;
         private Label label1;
         private Label label2;
-        private Label label3;
-        private Label label4;
+        private Label mmpp_Lbl;
+        private Label mm;
         private PictureBox Res_PB;
         private Button Cap_Btn;
         private Label PLC_status;
@@ -575,5 +593,6 @@
         private Button writePLC_Btn;
         private TextBox Angle_Reg_TB;
         private Label label12;
+        private Button Res_BTN;
     }
 }

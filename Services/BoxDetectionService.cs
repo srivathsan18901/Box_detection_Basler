@@ -30,10 +30,19 @@ namespace VisioNeo_3D.Services
         private const double ACTUAL_LENGTH_MM = 250;
         private const double ACTUAL_HEIGHT_MM = 300;
         private const double REFERENCE_DISTANCE_Z = 500.0;
-        private const double MM_PER_PIXEL = 0.60;
+        private const double DEFAULT_MM_PER_PIXEL = 0.60;
 
-        private double mmPerPixelX;
-        private double mmPerPixelY;
+        private double mmPerPixel = DEFAULT_MM_PER_PIXEL;
+
+        public double MmPerPixel => mmPerPixel;
+
+        public void SetMmPerPixel(double value)
+        {
+            if (value <= 0)
+                throw new ArgumentException("MM per pixel must be greater than zero.");
+
+            mmPerPixel = value;
+        }
 
         public BoxDetectionResult DetectBox(Bitmap source, float cameraZ)
         {
@@ -48,7 +57,7 @@ namespace VisioNeo_3D.Services
                 0,
                 0,
                 src.Width,
-                (int)(src.Height * 0.90));
+                (int)(src.Height * 0.80));
 
             src = new Mat(src, roi);
 
@@ -193,13 +202,16 @@ namespace VisioNeo_3D.Services
                 double widthPx = Math.Max(box.Size.Width, box.Size.Height);
                 double lengthPx = Math.Min(box.Size.Width, box.Size.Height);
 
-                mmPerPixelX = ACTUAL_WIDTH_MM / widthPx;
-                mmPerPixelY = ACTUAL_LENGTH_MM / lengthPx;
-                double widthMM = widthPx * mmPerPixelX;
-                double lengthMM = lengthPx * mmPerPixelY;
+                // Use calibrated MM/PX
+                double widthMM = widthPx * mmPerPixel;
+                double lengthMM = lengthPx * mmPerPixel;
 
-                double offsetX = (boxCenterX - frameCenterX) * MM_PER_PIXEL;
-                double offsetY = (boxCenterY - frameCenterY) * MM_PER_PIXEL;
+                // Position offsets using calibrated MM/PX
+                double offsetX =
+                    (boxCenterX - frameCenterX) * mmPerPixel;
+
+                double offsetY =
+                    (boxCenterY - frameCenterY) * mmPerPixel;
 
                 double detectedDistanceZ = cameraZ;
 
@@ -210,10 +222,10 @@ namespace VisioNeo_3D.Services
                 using (Graphics g = Graphics.FromImage(resultBmp))
                 {
                     int expectedWidthPx =
-                        (int)(ACTUAL_WIDTH_MM / mmPerPixelX);
+                        (int)(ACTUAL_WIDTH_MM / mmPerPixel);
 
                     int expectedLengthPx =
-                        (int)(ACTUAL_LENGTH_MM / mmPerPixelY);
+                        (int)(ACTUAL_LENGTH_MM / mmPerPixel);
 
                     Rectangle expectedRect =
                         new Rectangle(

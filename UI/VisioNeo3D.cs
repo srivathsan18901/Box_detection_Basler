@@ -45,6 +45,16 @@
         private bool _lastTriggerState = false;
         private bool _triggerReadBusy = false;
         private bool _captureInProgress = false;
+
+        // MM/PX Calibration
+        private bool calibrationMode = false;
+        private bool calibrationPoint1Selected = false;
+
+        private Point calibrationPoint1;
+        private Point calibrationPoint2;
+        private Point calibrationMousePoint;
+
+        private double calibratedMmPerPixel = 0.60;
         public VisioNeo3D()
         {
             InitializeComponent();
@@ -55,10 +65,13 @@
             withoutPLCService = new WithoutPLC_CameraService(logger);
             WithPLCService = new withPLC_ConnectionService(logger);
             visionService = new VisionProcessingService(logger);
-            boxDetectionService = new BoxDetectionService();
             plcTimer = new System.Windows.Forms.Timer();
             plcTimer.Interval = 100; // 1 second
 
+            boxDetectionService = new BoxDetectionService();
+            calibratedMmPerPixel = boxDetectionService.MmPerPixel;
+
+            mmpp_Lbl.Text = $"MM/PX : {calibratedMmPerPixel:F4}";
 
             plcTimer.Tick += PlcTimer_Tick;
             mitsubishiService = new MitsubishiPLCService();
@@ -442,7 +455,7 @@
                     label2.Text =
                         $"ΔY : {boxResult.OffsetY:F2} mm";
 
-                    label3.Text =
+                    mm.Text =
                         $"ΔZ : {boxResult.OffsetZ:F2} mm";
 
                     Res_PB.Image?.Dispose();
@@ -495,10 +508,7 @@
             CaptureAndProcess();
         }
 
-        private void Res_PB_Click(object sender, EventArgs e)
-        {
 
-        }
 
         private void loaderPic_Click(object sender, EventArgs e)
         {
@@ -678,6 +688,299 @@
                 writePLC_Btn.Enabled = true;
             }
         }
+
+        private void Res_BTN_Click(object sender, EventArgs e)
+        {
+            StartCalibration();
+        }
+
+        private void StartCalibration()
+        {
+            if (Res_PB.Image == null)
+            {
+                MessageBox.Show(
+                    "No image available for calibration.",
+                    "Calibration",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
+                return;
+            }
+
+            calibrationMode = true;
+            calibrationPoint1Selected = false;
+
+            calibrationPoint1 = Point.Empty;
+            calibrationPoint2 = Point.Empty;
+            calibrationMousePoint = Point.Empty;
+
+            Res_PB.Cursor = Cursors.Cross;
+
+            logger.Log(
+                "MM/PX Calibration started. Click first point.",
+                Color.Blue);
+
+            Res_PB.Invalidate();
+        }
+
+        private void Res_PB_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (!calibrationMode)
+                return;
+
+            calibrationMousePoint = e.Location;
+
+            Res_PB.Invalidate();
+        }
+
+        private void Res_PB_Click(object sender, EventArgs e)
+        {
+            if (!calibrationMode)
+                return;
+
+            if (Res_PB.Image == null)
+                return;
+
+            MouseEventArgs mouseEvent = e as MouseEventArgs;
+
+            if (mouseEvent == null)
+                return;
+
+            Point clickedPoint = mouseEvent.Location;
+
+            // First point
+            if (!calibrationPoint1Selected)
+            {
+                calibrationPoint1 = clickedPoint;
+
+                calibrationPoint1Selected = true;
+
+                calibrationMousePoint = clickedPoint;
+
+                logger.Log(
+                    $"Calibration Point 1 selected: " +
+                    $"X={clickedPoint.X}, Y={clickedPoint.Y}",
+                    Color.Blue);
+
+                Res_PB.Invalidate();
+
+                return;
+            }
+
+            // Second point
+            calibrationPoint2 = clickedPoint;
+
+            logger.Log(
+                $"Calibration Point 2 selected: " +
+                $"X={clickedPoint.X}, Y={clickedPoint.Y}",
+                Color.Blue);
+
+            // Calculate pixel distance
+            double dx =
+                calibrationPoint2.X -
+                calibrationPoint1.X;
+
+            double dy =
+                calibrationPoint2.Y -
+                calibrationPoint1.Y;
+
+            double pixelDistance =
+                Math.Sqrt(
+                    (dx * dx) +
+                    (dy * dy));
+
+            if (pixelDistance <= 0)
+            {
+                MessageBox.Show(
+                    "Invalid calibration distance.",
+                    "Calibration",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
+                calibrationPoint1Selected = false;
+                Res_PB.Invalidate();
+
+                return;
+            }
+
+            // Ask user for actual distance
+            string input =
+                Microsoft.VisualBasic.Interaction.InputBox(
+                    $"Measured pixel distance: {pixelDistance:F2} pixels\n\n" +
+                    "Enter the actual distance in mm:",
+                    "MM/PX Calibration",
+                    "");
+
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                logger.Log(
+                    "Calibration cancelled.",
+                    Color.Orange);
+
+                calibrationMode = false;
+                calibrationPoint1Selected = false;
+
+                Res_PB.Cursor = Cursors.Default;
+                Res_PB.Invalidate();
+
+                return;
+            }
+
+            if (!double.TryParse(
+                input,
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out double actualDistanceMM))
+            {
+                MessageBox.Show(
+                    "Please enter a valid numeric distance.",
+                    "Calibration Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+
+                calibrationMode = false;
+                calibrationPoint1Selected = false;
+
+                Res_PB.Cursor = Cursors.Default;
+                Res_PB.Invalidate();
+
+                return;
+            }
+
+            if (actualDistanceMM <= 0)
+            {
+                MessageBox.Show(
+                    "Distance must be greater than zero.",
+                    "Calibration Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
+                calibrationMode = false;
+                calibrationPoint1Selected = false;
+
+                Res_PB.Cursor = Cursors.Default;
+                Res_PB.Invalidate();
+
+                return;
+            }
+
+            // Calculate MM/PX
+            double newMmPerPixel =
+                actualDistanceMM / pixelDistance;
+
+            // Update service
+            boxDetectionService.SetMmPerPixel(
+                newMmPerPixel);
+
+            calibratedMmPerPixel =
+                newMmPerPixel;
+
+            // Update label
+            mmpp_Lbl.Text =
+                $"MM/PX : {calibratedMmPerPixel:F4}";
+
+            logger.Log(
+                $"Calibration completed -> " +
+                $"Pixel Distance: {pixelDistance:F2}px, " +
+                $"Actual Distance: {actualDistanceMM:F2}mm, " +
+                $"MM/PX: {newMmPerPixel:F4}",
+                Color.Green);
+
+            MessageBox.Show(
+                $"Calibration completed successfully.\n\n" +
+                $"Pixel Distance : {pixelDistance:F2} px\n" +
+                $"Actual Distance: {actualDistanceMM:F2} mm\n\n" +
+                $"MM/PX : {newMmPerPixel:F4}",
+                "Calibration Complete",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+
+            calibrationMode = false;
+            calibrationPoint1Selected = false;
+
+            Res_PB.Cursor = Cursors.Default;
+
+            Res_PB.Invalidate();
+        }
+
+        private void Res_PB_Paint(object sender, PaintEventArgs e)
+        {
+
+            if (!calibrationMode)
+                return;
+
+            if (!calibrationPoint1Selected)
+            {
+                using Pen pointPen =
+                    new Pen(Color.Yellow, 3);
+
+                e.Graphics.DrawEllipse(
+                    pointPen,
+                    calibrationMousePoint.X - 5,
+                    calibrationMousePoint.Y - 5,
+                    10,
+                    10);
+
+                return;
+            }
+
+            Point endPoint =
+                calibrationMousePoint;
+
+            using Pen linePen =
+                new Pen(Color.Yellow, 3);
+
+            e.Graphics.DrawLine(
+                linePen,
+                calibrationPoint1,
+                endPoint);
+
+            // Calculate realtime pixel distance
+            double dx =
+                endPoint.X -
+                calibrationPoint1.X;
+
+            double dy =
+                endPoint.Y -
+                calibrationPoint1.Y;
+
+            double pixelDistance =
+                Math.Sqrt(
+                    dx * dx +
+                    dy * dy);
+
+            string text =
+                $"Distance: {pixelDistance:F1} px";
+
+            if (pixelDistance > 0)
+            {
+                double estimatedMM =
+                    pixelDistance *
+                    calibratedMmPerPixel;
+
+                text +=
+                    $"\nEstimated: {estimatedMM:F2} mm";
+            }
+
+            using Font font =
+                new Font("Arial", 11, FontStyle.Bold);
+
+            using Brush brush =
+                new SolidBrush(Color.Yellow);
+
+            Point textPosition =
+                new Point(
+                    endPoint.X + 10,
+                    endPoint.Y + 10);
+
+            e.Graphics.DrawString(
+                text,
+                font,
+                brush,
+                textPosition);
+        }
+
+
 
         //private void ImageGrabbedHandler(object sender, ImageGrabbedEventArgs e)
         //{

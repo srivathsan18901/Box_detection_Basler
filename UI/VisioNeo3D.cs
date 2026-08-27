@@ -150,8 +150,9 @@
 
                 UpdatePLCStatus(PlcStatus.Retrying);
 
-                PLC_status.Text =
-                    $"PLC Retrying... ({retryCount})";
+                PLC_status.Text = $"PLC Retrying...";
+
+                //$"PLC Retrying... ({retryCount})";
 
                 bool reconnect = await Task.Run(() =>
                 {
@@ -542,7 +543,9 @@
 
                 case PlcStatus.Retrying:
                     PLC_status.Text =
-                        $"PLC Retrying... ({retryCount})";
+                        $"PLC Retrying...)";
+
+                    //$"PLC Retrying... ({retryCount})";
                     PLC_status.ForeColor = Color.Orange;
                     break;
 

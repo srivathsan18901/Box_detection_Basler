@@ -29,7 +29,7 @@ namespace VisioNeo_3D.Services
         private const double ACTUAL_WIDTH_MM = 300;
         private const double ACTUAL_LENGTH_MM = 250;
         private const double ACTUAL_HEIGHT_MM = 300;
-        private const double REFERENCE_DISTANCE_Z = 500.0;
+        //private const double REFERENCE_DISTANCE_Z = 500.0;
         private const double DEFAULT_MM_PER_PIXEL = 0.60;
 
         private double mmPerPixel = DEFAULT_MM_PER_PIXEL;
@@ -215,8 +215,8 @@ namespace VisioNeo_3D.Services
 
                 double detectedDistanceZ = cameraZ;
 
-                double offsetZ =
-                   REFERENCE_DISTANCE_Z - detectedDistanceZ;
+                double offsetZ = cameraZ;
+                //REFERENCE_DISTANCE_Z - detectedDistanceZ;
 
 
                 using (Graphics g = Graphics.FromImage(resultBmp))

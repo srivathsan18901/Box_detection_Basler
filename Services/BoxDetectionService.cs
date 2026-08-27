@@ -48,7 +48,7 @@ namespace VisioNeo_3D.Services
                 0,
                 0,
                 src.Width,
-                (int)(src.Height * 0.80));
+                (int)(src.Height * 0.90));
 
             src = new Mat(src, roi);
 

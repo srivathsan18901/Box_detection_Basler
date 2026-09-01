@@ -85,7 +85,7 @@
             pictureBox1.BackColor = Color.Transparent;
             pictureBox1.Location = new Point(12, 100);
             pictureBox1.Name = "pictureBox1";
-            pictureBox1.Size = new Size(538, 526);
+            pictureBox1.Size = new Size(676, 526);
             pictureBox1.TabIndex = 1;
             pictureBox1.TabStop = false;
             // 
@@ -115,7 +115,7 @@
             // 
             closeBtn.BackColor = Color.Transparent;
             closeBtn.Image = (Image)resources.GetObject("closeBtn.Image");
-            closeBtn.Location = new Point(1585, 13);
+            closeBtn.Location = new Point(1713, 13);
             closeBtn.Name = "closeBtn";
             closeBtn.Size = new Size(23, 23);
             closeBtn.SizeMode = PictureBoxSizeMode.StretchImage;
@@ -127,7 +127,7 @@
             // 
             minBtn.BackColor = Color.Transparent;
             minBtn.Image = (Image)resources.GetObject("minBtn.Image");
-            minBtn.Location = new Point(1554, 13);
+            minBtn.Location = new Point(1682, 13);
             minBtn.Name = "minBtn";
             minBtn.Size = new Size(23, 23);
             minBtn.SizeMode = PictureBoxSizeMode.StretchImage;
@@ -152,7 +152,7 @@
             // toastbox
             // 
             toastbox.BorderStyle = BorderStyle.None;
-            toastbox.Location = new Point(1275, 98);
+            toastbox.Location = new Point(1403, 98);
             toastbox.Name = "toastbox";
             toastbox.Size = new Size(335, 219);
             toastbox.TabIndex = 7;
@@ -174,7 +174,7 @@
             loaderPic.BackColor = Color.Transparent;
             loaderPic.BackgroundImage = (Image)resources.GetObject("loaderPic.BackgroundImage");
             loaderPic.Image = (Image)resources.GetObject("loaderPic.Image");
-            loaderPic.Location = new Point(1491, 2);
+            loaderPic.Location = new Point(1619, 2);
             loaderPic.Name = "loaderPic";
             loaderPic.Size = new Size(46, 46);
             loaderPic.SizeMode = PictureBoxSizeMode.Zoom;
@@ -208,7 +208,7 @@
             mmpp_Lbl.AutoSize = true;
             mmpp_Lbl.BackColor = Color.Transparent;
             mmpp_Lbl.Font = new Font("Segoe UI Semibold", 10F, FontStyle.Bold);
-            mmpp_Lbl.Location = new Point(1368, 45);
+            mmpp_Lbl.Location = new Point(1496, 45);
             mmpp_Lbl.Name = "mmpp_Lbl";
             mmpp_Lbl.Size = new Size(0, 19);
             mmpp_Lbl.TabIndex = 12;
@@ -226,7 +226,7 @@
             // Res_PB
             // 
             Res_PB.BackColor = Color.Transparent;
-            Res_PB.Location = new Point(566, 98);
+            Res_PB.Location = new Point(694, 98);
             Res_PB.Name = "Res_PB";
             Res_PB.Size = new Size(703, 528);
             Res_PB.TabIndex = 14;
@@ -277,7 +277,7 @@
             panel1.Controls.Add(label7);
             panel1.Controls.Add(label6);
             panel1.Controls.Add(label5);
-            panel1.Location = new Point(1275, 323);
+            panel1.Location = new Point(1403, 323);
             panel1.Name = "panel1";
             panel1.Size = new Size(335, 303);
             panel1.TabIndex = 17;
@@ -497,7 +497,7 @@
             Res_BTN.BackgroundImageLayout = ImageLayout.Center;
             Res_BTN.Font = new Font("Noto Sans SC", 12F, FontStyle.Bold, GraphicsUnit.Point, 0);
             Res_BTN.ForeColor = Color.DodgerBlue;
-            Res_BTN.Location = new Point(1368, 8);
+            Res_BTN.Location = new Point(1496, 8);
             Res_BTN.Name = "Res_BTN";
             Res_BTN.Size = new Size(112, 34);
             Res_BTN.TabIndex = 33;
@@ -511,7 +511,7 @@
             AutoScaleMode = AutoScaleMode.Font;
             BackgroundImage = (Image)resources.GetObject("$this.BackgroundImage");
             BackgroundImageLayout = ImageLayout.Stretch;
-            ClientSize = new Size(1622, 644);
+            ClientSize = new Size(1742, 644);
             ControlBox = false;
             Controls.Add(Res_BTN);
             Controls.Add(writePLC_Btn);

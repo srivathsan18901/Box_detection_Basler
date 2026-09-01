@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("VisioNeo_3D")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e6badfd47c8732265906dac7b07b6dd1b178526f")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e19f17491d14d600b2e5a9c8f58f534a0da80daf")]
 [assembly: System.Reflection.AssemblyProductAttribute("VisioNeo_3D")]
 [assembly: System.Reflection.AssemblyTitleAttribute("VisioNeo_3D")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

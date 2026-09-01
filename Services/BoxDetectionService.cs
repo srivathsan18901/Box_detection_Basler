@@ -17,7 +17,6 @@ namespace VisioNeo_3D.Services
 
         public double HeightMM { get; set; }
 
-        // Add these
         public double ActualWidthMM { get; set; }
         public double ActualLengthMM { get; set; }
         public double ActualHeightMM { get; set; }
@@ -29,7 +28,6 @@ namespace VisioNeo_3D.Services
         private const double ACTUAL_WIDTH_MM = 300;
         private const double ACTUAL_LENGTH_MM = 250;
         private const double ACTUAL_HEIGHT_MM = 300;
-        //private const double REFERENCE_DISTANCE_Z = 500.0;
         private const double DEFAULT_MM_PER_PIXEL = 0.60;
 
         private double mmPerPixel = DEFAULT_MM_PER_PIXEL;
@@ -46,34 +44,28 @@ namespace VisioNeo_3D.Services
 
         public BoxDetectionResult DetectBox(Bitmap source, float cameraZ)
         {
+            // Clone the source bitmap for result drawing
             Bitmap resultBmp = (Bitmap)source.Clone();
 
+            // Convert to OpenCV Mat - process the FULL image without ROI restriction
             Mat src = BitmapConverter.ToMat(source);
-            //double measuredHeight = REFERENCE_PLANE_Z - cameraZ;
 
+            // Store original dimensions for coordinate calculations
+            int originalWidth = src.Width;
+            int originalHeight = src.Height;
 
-            // Process only the upper 65% of the image
-            Rect roi = new Rect(
-                0,
-                0,
-                src.Width,
-                (int)(src.Height * 0.80));
-
-            src = new Mat(src, roi);
-
+            // Convert to grayscale
             Mat gray = new Mat();
             Cv2.CvtColor(src, gray, ColorConversionCodes.BGR2GRAY);
 
+            // Apply Gaussian blur to reduce noise
+            Mat blurred = new Mat();
+            Cv2.GaussianBlur(gray, blurred, new OpenCvSharp.Size(5, 5), 0);
+
+            // Apply adaptive threshold for better segmentation
             Mat thresh = new Mat();
-
-            Cv2.GaussianBlur(
-                gray,
-                gray,
-                new OpenCvSharp.Size(5, 5),
-                0);
-
             Cv2.AdaptiveThreshold(
-                gray,
+                blurred,
                 thresh,
                 255,
                 AdaptiveThresholdTypes.GaussianC,
@@ -81,23 +73,15 @@ namespace VisioNeo_3D.Services
                 21,
                 5);
 
-            Mat kernel =
-                Cv2.GetStructuringElement(
-                    MorphShapes.Rect,
-                    new OpenCvSharp.Size(3, 3));
+            // Morphological operations to clean up the binary image
+            Mat kernel = Cv2.GetStructuringElement(
+                MorphShapes.Rect,
+                new OpenCvSharp.Size(3, 3));
 
-            Cv2.Dilate(
-            thresh,
-            thresh,
-            kernel,
-            iterations: 1);
+            Cv2.Dilate(thresh, thresh, kernel, iterations: 1);
+            Cv2.MorphologyEx(thresh, thresh, MorphTypes.Close, kernel);
 
-            Cv2.MorphologyEx(
-                thresh,
-                thresh,
-                MorphTypes.Close,
-                kernel);
-
+            // Find contours in the FULL image
             OpenCvSharp.Point[][] contours;
             HierarchyIndex[] hierarchy;
 
@@ -108,48 +92,59 @@ namespace VisioNeo_3D.Services
                 RetrievalModes.List,
                 ContourApproximationModes.ApproxSimple);
 
-            Rect bestRect = new Rect();
-
-            double bestScore = double.MinValue;
-            OpenCvSharp.Point[] bestContour = null;
+            // Variables for best match
             RotatedRect bestBox = new RotatedRect();
+            OpenCvSharp.Point[] bestContour = null;
+            double bestScore = double.MinValue;
+
+            // Calculate frame center (full image)
+            double frameCenterX = src.Width / 2.0;
+            double frameCenterY = src.Height / 2.0;
+
+            // Expected box dimensions in pixels
+            double expectedWidthPx = ACTUAL_WIDTH_MM / mmPerPixel;
+            double expectedLengthPx = ACTUAL_LENGTH_MM / mmPerPixel;
+            double expectedRatio = ACTUAL_WIDTH_MM / ACTUAL_LENGTH_MM;
 
             foreach (var contour in contours)
             {
                 double area = Cv2.ContourArea(contour);
 
+                // Minimum area threshold to filter out noise
                 if (area < 3000)
                     continue;
 
+                // Get minimum area rectangle
                 RotatedRect rect = Cv2.MinAreaRect(contour);
 
-                double w = rect.Size.Width;
-                double h = rect.Size.Height;
+                // Get width and height (normalize so width >= height)
+                double contourWidthPx = Math.Max(rect.Size.Width, rect.Size.Height);
+                double contourLengthPx = Math.Min(rect.Size.Width, rect.Size.Height);
 
-                if (w < 50 || h < 50)
+                // Filter out very small rectangles
+                if (contourWidthPx < 50 || contourLengthPx < 50)
                     continue;
 
-                double ratio = Math.Max(w, h) /
-                               Math.Min(w, h);
-
-                double expectedRatio = ACTUAL_WIDTH_MM / ACTUAL_LENGTH_MM;
-
-                if (Math.Abs(ratio - expectedRatio) > 0.3)
+                // Check aspect ratio with tolerance
+                double ratio = contourWidthPx / contourLengthPx;
+                if (Math.Abs(ratio - expectedRatio) > 0.20)
                     continue;
 
-                double frameCenterX = src.Width / 2.0;
-                double frameCenterY = src.Height / 2.0;
+                // Check physical size with tolerance
+                double widthDifference = Math.Abs(contourWidthPx - expectedWidthPx) / expectedWidthPx;
+                double lengthDifference = Math.Abs(contourLengthPx - expectedLengthPx) / expectedLengthPx;
 
-                // distance from image center
+                if (widthDifference > 0.25 || lengthDifference > 0.25)
+                    continue;
+
+                // Calculate distance from center
                 double distanceX = Math.Abs(rect.Center.X - frameCenterX);
+                double distanceY = Math.Abs(rect.Center.Y - frameCenterY);
 
-                double distanceY =
-                    Math.Abs(rect.Center.Y - frameCenterY);
-
-                double score =
-                      area
-                    - distanceX * 500
-                    - distanceY * 100;
+                // Score the contour
+                double sizeScore = 1.0 - (widthDifference + lengthDifference) / 2.0;
+                double centerPenalty = distanceX * 0.5 + distanceY * 0.5;
+                double score = sizeScore * 10000 - centerPenalty;
 
                 if (score > bestScore)
                 {
@@ -157,9 +152,9 @@ namespace VisioNeo_3D.Services
                     bestContour = contour;
                     bestBox = rect;
                 }
-
             }
 
+            // If no box detected, return default result
             if (bestContour == null)
             {
                 return new BoxDetectionResult
@@ -167,150 +162,113 @@ namespace VisioNeo_3D.Services
                     ResultImage = resultBmp,
                     OffsetX = 0,
                     OffsetY = 0,
-                    OffsetZ = 0
-                };
-            }
-            RotatedRect box = bestBox;
-
-            double angle = box.Angle;
-
-            // Normalize angle based on the longer dimension
-            if (box.Size.Width < box.Size.Height)
-            {
-                angle += 90.0;
-            }
-
-            // Normalize to -90° to +90°
-            while (angle >= 90.0)
-                angle -= 180.0;
-
-            while (angle < -90.0)
-                angle += 180.0;
-
-            Point2f[] pts = box.Points();
-
-            //if (maxArea > 1000)
-            {
-
-
-                int frameCenterX = resultBmp.Width / 2;
-                int frameCenterY = resultBmp.Height / 2;
-
-                int boxCenterX = (int)(box.Center.X + roi.X);
-                int boxCenterY = (int)(box.Center.Y + roi.Y);
-
-                double widthPx = Math.Max(box.Size.Width, box.Size.Height);
-                double lengthPx = Math.Min(box.Size.Width, box.Size.Height);
-
-                // Use calibrated MM/PX
-                double widthMM = widthPx * mmPerPixel;
-                double lengthMM = lengthPx * mmPerPixel;
-
-                // Position offsets using calibrated MM/PX
-                double offsetX =
-                    (boxCenterX - frameCenterX) * mmPerPixel;
-
-                double offsetY =
-                    (boxCenterY - frameCenterY) * mmPerPixel;
-
-                double detectedDistanceZ = cameraZ;
-
-                double offsetZ = cameraZ;
-                //REFERENCE_DISTANCE_Z - detectedDistanceZ;
-
-
-                using (Graphics g = Graphics.FromImage(resultBmp))
-                {
-                    int expectedWidthPx =
-                        (int)(ACTUAL_WIDTH_MM / mmPerPixel);
-
-                    int expectedLengthPx =
-                        (int)(ACTUAL_LENGTH_MM / mmPerPixel);
-
-                    Rectangle expectedRect =
-                        new Rectangle(
-                            frameCenterX - expectedWidthPx / 2,
-                            frameCenterY - expectedLengthPx / 2,
-                            expectedWidthPx,
-                            expectedLengthPx);
-
-                    g.DrawRectangle(
-                        new Pen(Color.Lime, 3),
-                        expectedRect);
-
-                    g.DrawPolygon(
-                        new Pen(Color.Red, 3),
-                        pts.Select(p =>
-                            new PointF(p.X, p.Y))
-                        .ToArray());
-
-                    g.DrawLine(
-                        Pens.Yellow,
-                        frameCenterX - 10,
-                        frameCenterY,
-                        frameCenterX + 10,
-                        frameCenterY);
-
-                    g.DrawLine(
-                        Pens.Yellow,
-                        frameCenterX,
-                        frameCenterY - 10,
-                        frameCenterX,
-                        frameCenterY + 10);
-
-                    g.DrawString(
-                        $"BOX DETECTED\n" +
-                        $"W: {ACTUAL_WIDTH_MM:F1} mm\n" +
-                        $"L: {ACTUAL_LENGTH_MM:F1} mm\n" +
-                        $"DX: {offsetX:F1} mm\n" +
-                        $"DY: {offsetY:F1} mm\n" +
-                        $"DZ: {offsetZ:F1} mm\n" +
-                        $"ANGLE: {angle:F1}°",
-                    SystemFonts.DefaultFont,
-                        Brushes.Red,
-                        10,
-                        10);
-                }
-
-                return new BoxDetectionResult
-                {
-                    ResultImage = resultBmp,
-
-                    OffsetX = offsetX,
-                    OffsetY = offsetY,
-                    OffsetZ = offsetZ,
-
-                    WidthMM = widthMM,
-                    LengthMM = lengthMM,
-                    HeightMM = ACTUAL_HEIGHT_MM,
-                    Angle = angle,
-
+                    OffsetZ = 0,
+                    WidthMM = 0,
+                    LengthMM = 0,
+                    HeightMM = 0,
+                    Angle = 0,
                     ActualWidthMM = ACTUAL_WIDTH_MM,
                     ActualLengthMM = ACTUAL_LENGTH_MM,
                     ActualHeightMM = ACTUAL_HEIGHT_MM
                 };
             }
+
+            // Process the detected box
+            RotatedRect box = bestBox;
+
+            // Calculate angle
+            double angle = box.Angle;
+            if (box.Size.Width < box.Size.Height)
+            {
+                angle += 90.0;
+            }
+
+            // Normalize angle to -90° to +90°
+            while (angle >= 90.0)
+                angle -= 180.0;
+            while (angle < -90.0)
+                angle += 180.0;
+
+            // Get box points
+            Point2f[] pts = box.Points();
+
+            // Calculate center and dimensions
+            int frameCenterX_int = resultBmp.Width / 2;
+            int frameCenterY_int = resultBmp.Height / 2;
+
+            int boxCenterX = (int)box.Center.X;
+            int boxCenterY = (int)box.Center.Y;
+
+            // Use different variable names to avoid conflicts
+            double detectedWidthPx = Math.Max(box.Size.Width, box.Size.Height);
+            double detectedLengthPx = Math.Min(box.Size.Width, box.Size.Height);
+
+            // Convert to millimeters using calibrated MM/PX
+            double widthMM = detectedWidthPx * mmPerPixel;
+            double lengthMM = detectedLengthPx * mmPerPixel;
+
+            // Calculate position offsets in millimeters
+            double offsetX = (boxCenterX - frameCenterX_int) * mmPerPixel;
+            double offsetY = (boxCenterY - frameCenterY_int) * mmPerPixel;
+
+            // Use the camera Z value (depth from 3D camera)
+            double offsetZ = cameraZ;
+
+            // Draw results on the image
+            using (Graphics g = Graphics.FromImage(resultBmp))
+            {
+                // Draw expected box outline (green)
+                int expectedWidthPx_int = (int)(ACTUAL_WIDTH_MM / mmPerPixel);
+                int expectedLengthPx_int = (int)(ACTUAL_LENGTH_MM / mmPerPixel);
+
+                Rectangle expectedRect = new Rectangle(
+                    frameCenterX_int - expectedWidthPx_int / 2,
+                    frameCenterY_int - expectedLengthPx_int / 2,
+                    expectedWidthPx_int,
+                    expectedLengthPx_int);
+
+                g.DrawRectangle(new Pen(Color.Lime, 3), expectedRect);
+
+                // Draw detected box outline (red)
+                PointF[] drawPoints = pts.Select(p => new PointF(p.X, p.Y)).ToArray();
+                g.DrawPolygon(new Pen(Color.Red, 3), drawPoints);
+
+                // Draw crosshair at center
+                g.DrawLine(Pens.Yellow, frameCenterX_int - 10, frameCenterY_int, frameCenterX_int + 10, frameCenterY_int);
+                g.DrawLine(Pens.Yellow, frameCenterX_int, frameCenterY_int - 10, frameCenterX_int, frameCenterY_int + 10);
+
+                // Draw information text
+                string infoText = $"BOX DETECTED\n" +
+                                  $"W: {widthMM:F1} mm\n" +
+                                  $"L: {lengthMM:F1} mm\n" +
+                                  $"DX: {offsetX:F1} mm\n" +
+                                  $"DY: {offsetY:F1} mm\n" +
+                                  $"DZ: {offsetZ:F1} mm\n" +
+                                  $"ANGLE: {angle:F1}°";
+
+                g.DrawString(
+                    infoText,
+                    SystemFonts.DefaultFont,
+                    Brushes.Red,
+                    10,
+                    10);
+            }
+
+            // Return the result
             return new BoxDetectionResult
             {
                 ResultImage = resultBmp,
-
-                OffsetX = 0,
-                OffsetY = 0,
-                OffsetZ = 0,
-                Angle = 0
+                OffsetX = offsetX,
+                OffsetY = offsetY,
+                OffsetZ = offsetZ,
+                WidthMM = widthMM,
+                LengthMM = lengthMM,
+                HeightMM = ACTUAL_HEIGHT_MM,
+                Angle = angle,
+                ActualWidthMM = ACTUAL_WIDTH_MM,
+                ActualLengthMM = ACTUAL_LENGTH_MM,
+                ActualHeightMM = ACTUAL_HEIGHT_MM
             };
-            if (bestContour == null)
-            {
-                return new BoxDetectionResult
-                {
-                    ResultImage = resultBmp,
-
-                    OffsetX = 0,
-                    OffsetY = 0,
-                    OffsetZ = 0,
-                    Angle = 0
-                };
-            }
         }
     }
 }

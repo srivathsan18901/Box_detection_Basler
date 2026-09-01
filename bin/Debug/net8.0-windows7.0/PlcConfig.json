@@ -1,8 +1,9 @@
 {
-  "PlcIp": "192.168.0.99",
+  "PlcIp": "192.168.4.99",
   "PlcPort": 501,
   "TriggerReg": "D101",
   "XReg": "D100",
   "YReg": "D102",
-  "ZReg": "D104"
+  "ZReg": "D104",
+  "AngleReg": "D105"
 }

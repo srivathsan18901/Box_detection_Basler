@@ -25,6 +25,11 @@ namespace VisioNeo_3D.Services
 
         private DateTime lastNoBagLog = DateTime.MinValue;
 
+        // Store the latest point cloud data for Z extraction
+        private float[] latestPointCloud;
+        private int latestWidth;
+        private int latestHeight;
+
         public VisionProcessingService(LogService log)
         {
             logger = log;
@@ -42,6 +47,11 @@ namespace VisioNeo_3D.Services
             int height = intensityComponent.Height;
 
             float[] pointCloud = rangeComponent.PixelData as float[];
+
+            // Store point cloud for later use
+            latestPointCloud = pointCloud;
+            latestWidth = width;
+            latestHeight = height;
 
             DrawingBitmap bitmap = null;
             RotatedRect rotatedBag = new RotatedRect();
@@ -69,17 +79,7 @@ namespace VisioNeo_3D.Services
 
                 rotatedBag = result.box;
                 bagCenter = result.center;
-
-                //if (rotatedBag.Size.Width == 0)
-                //{
-                //    if ((DateTime.Now - lastNoBagLog).TotalSeconds > 2)
-                //    {
-                //        lastNoBagLog = DateTime.Now;
-                //        logger.Log("No bag detected in frame", DrawingColor.Orange);
-                //    }
-                //}
             }
-
             else if (selectedComponent == 2)
             {
                 bitmap = new DrawingBitmap(width, height, PixelFormat.Format32bppRgb);
@@ -98,7 +98,6 @@ namespace VisioNeo_3D.Services
 
                 bitmap.UnlockBits(bmpData);
             }
-
             else if (selectedComponent == 0)
             {
                 float[] depthZ = new float[width * height];
@@ -109,184 +108,96 @@ namespace VisioNeo_3D.Services
                 bitmap = ConvertDepthToBitmap(depthZ, width, height);
             }
 
+            // ALWAYS extract Z value from point cloud, even without bag detection
             float X = 0;
             float Y = 0;
             float Z = 0;
 
+            // Try to get Z from bag center if bag detected
             if (rotatedBag.Size.Width > 0)
             {
-                List<float> validZValues = new List<float>();
-
-                int radius = 10;
-
-                for (int dy = -radius; dy <= radius; dy++)
-                {
-                    for (int dx = -radius; dx <= radius; dx++)
-                    {
-                        int px = bagCenter.X + dx;
-                        int py = bagCenter.Y + dy;
-
-                        if (px < 0 || px >= width ||
-                            py < 0 || py >= height)
-                            continue;
-
-                        int pixelIndex = py * width + px;
-                        int pointIndex = pixelIndex * 3;
-
-                        if (pointIndex + 2 >= pointCloud.Length)
-                            continue;
-
-                        float pxX = pointCloud[pointIndex];
-                        float pxY = pointCloud[pointIndex + 1];
-                        float pxZ = pointCloud[pointIndex + 2];
-
-                        if (float.IsNaN(pxZ) ||
-                            float.IsInfinity(pxZ) ||
-                            pxZ <= 0)
-                            continue;
-
-                        validZValues.Add(pxZ);
-                    }
-                }
-
-                if (validZValues.Count > 0)
-                {
-                    Z = GetMedian(validZValues);
-
-                    // Also use center point's X/Y if valid
-                    int centerPixel =
-                        bagCenter.Y * width + bagCenter.X;
-
-                    int centerIndex =
-                        centerPixel * 3;
-
-                    if (centerIndex + 2 < pointCloud.Length)
-                    {
-                        X = pointCloud[centerIndex];
-                        Y = pointCloud[centerIndex + 1];
-                    }
-
-                    //logger.Log(
-                    //    $"3D Measurement -> " +
-                    //    $"X:{X:F2} mm " +
-                    //    $"Y:{Y:F2} mm " +
-                    //    $"Z:{Z:F2} mm " +
-                    //    $"Valid Points:{validZValues.Count}",
-                    //    DrawingColor.Green);
-                }
-                else
-                {
-                    X = 0;
-                    Y = 0;
-                    Z = 0;
-
-                    //logger.Log(
-                    //    "No valid Z points found around box center.",
-                    //    DrawingColor.Red);
-                }
+                (X, Y, Z) = ExtractZFromPointCloud(pointCloud, width, height, bagCenter);
+            }
+            else
+            {
+                // If no bag detected, get Z from image center
+                DrawingPoint centerPoint = new DrawingPoint(width / 2, height / 2);
+                (X, Y, Z) = ExtractZFromPointCloud(pointCloud, width, height, centerPoint);
             }
 
             return (bitmap, bagCenter, rotatedBag, X, Y, Z);
         }
 
-        //public (float X, float Y, float Z, int ValidPoints) GetCenter3DMeasurement(IGrabResult grabResult)
-        //{
-        //    using var container = grabResult.Container;
-        //    using var rangeComponent = container[0];
+        /// <summary>
+        /// Extract X, Y, Z values from point cloud around a given center point
+        /// </summary>
+        private (float X, float Y, float Z) ExtractZFromPointCloud(float[] pointCloud, int width, int height, DrawingPoint center)
+        {
+            if (pointCloud == null || pointCloud.Length == 0)
+            {
+                logger.Log("Point cloud is null or empty", DrawingColor.Red);
+                return (0, 0, 0);
+            }
 
-        //    int width = rangeComponent.Width;
-        //    int height = rangeComponent.Height;
+            List<float> validXValues = new List<float>();
+            List<float> validYValues = new List<float>();
+            List<float> validZValues = new List<float>();
 
-        //    float[] pointCloud =
-        //        rangeComponent.PixelData as float[];
+            // Use a larger radius for better sampling
+            int radius = 15;
 
-        //    if (pointCloud == null)
-        //    {
-        //        return (0, 0, 0, 0);
-        //    }
+            for (int dy = -radius; dy <= radius; dy++)
+            {
+                for (int dx = -radius; dx <= radius; dx++)
+                {
+                    int px = center.X + dx;
+                    int py = center.Y + dy;
 
-        //    int centerX = width / 2;
-        //    int centerY = height / 2;
+                    if (px < 0 || px >= width || py < 0 || py >= height)
+                        continue;
 
-        //    List<float> xValues = new List<float>();
-        //    List<float> yValues = new List<float>();
-        //    List<float> zValues = new List<float>();
+                    int pixelIndex = py * width + px;
+                    int pointIndex = pixelIndex * 3;
 
-        //    // 5 x 5 area around image center
-        //    for (int dy = -2; dy <= 2; dy++)
-        //    {
-        //        for (int dx = -2; dx <= 2; dx++)
-        //        {
-        //            int x = centerX + dx;
-        //            int y = centerY + dy;
+                    if (pointIndex + 2 >= pointCloud.Length)
+                        continue;
 
-        //            if (x < 0 || x >= width ||
-        //                y < 0 || y >= height)
-        //                continue;
+                    float pxX = pointCloud[pointIndex];
+                    float pxY = pointCloud[pointIndex + 1];
+                    float pxZ = pointCloud[pointIndex + 2];
 
-        //            int pixelIndex =
-        //                y * width + x;
+                    // Validate point data
+                    if (float.IsNaN(pxZ) || float.IsInfinity(pxZ) || pxZ <= 0)
+                        continue;
 
-        //            int pointIndex =
-        //                pixelIndex * 3;
+                    if (float.IsNaN(pxX) || float.IsInfinity(pxX))
+                        continue;
 
-        //            float px =
-        //                pointCloud[pointIndex];
+                    if (float.IsNaN(pxY) || float.IsInfinity(pxY))
+                        continue;
 
-        //            float py =
-        //                pointCloud[pointIndex + 1];
+                    validXValues.Add(pxX);
+                    validYValues.Add(pxY);
+                    validZValues.Add(pxZ);
+                }
+            }
 
-        //            float pz =
-        //                pointCloud[pointIndex + 2];
+            if (validZValues.Count == 0)
+            {
+                logger.Log($"No valid Z points found around center ({center.X}, {center.Y})", DrawingColor.Orange);
+                return (0, 0, 0);
+            }
 
-        //            // Reject invalid points
-        //            if (float.IsNaN(px) ||
-        //                float.IsNaN(py) ||
-        //                float.IsNaN(pz))
-        //                continue;
+            // Use median for stability
+            float medianX = GetMedian(validXValues);
+            float medianY = GetMedian(validYValues);
+            float medianZ = GetMedian(validZValues);
 
-        //            if (float.IsInfinity(px) ||
-        //                float.IsInfinity(py) ||
-        //                float.IsInfinity(pz))
-        //                continue;
+            //logger.Log($"3D Measurement -> X:{medianX:F2} mm Y:{medianY:F2} mm Z:{medianZ:F2} mm Valid Points:{validZValues.Count}",
+            //    DrawingColor.Green);
 
-        //            if (pz <= 0)
-        //                continue;
-
-        //            xValues.Add(px);
-        //            yValues.Add(py);
-        //            zValues.Add(pz);
-        //        }
-        //    }
-
-        //    if (zValues.Count == 0)
-        //    {
-        //        //logger.Log(
-        //        //    "3D Measurement -> No valid points",
-        //        //    DrawingColor.Red);
-
-        //        return (0, 0, 0, 0);
-        //    }
-
-        //    // Median is more stable than a single pixel
-        //    float medianX = GetMedian(xValues);
-        //    float medianY = GetMedian(yValues);
-        //    float medianZ = GetMedian(zValues);
-
-        //    //logger.Log(
-        //    //    $"3D Measurement -> " +
-        //    //    $"X:{medianX:F2} mm " +
-        //    //    $"Y:{medianY:F2} mm " +
-        //    //    $"Z:{medianZ:F2} mm " +
-        //    //    $"Valid Points:{zValues.Count}",
-        //    //    DrawingColor.Blue);
-
-        //    return (
-        //        medianX,
-        //        medianY,
-        //        medianZ,
-        //        zValues.Count);
-        //}
+            return (medianX, medianY, medianZ);
+        }
 
         private float GetMedian(List<float> values)
         {
@@ -299,10 +210,7 @@ namespace VisioNeo_3D.Services
 
             if (values.Count % 2 == 0)
             {
-                return (
-                    values[middle - 1] +
-                    values[middle]
-                ) / 2f;
+                return (values[middle - 1] + values[middle]) / 2f;
             }
 
             return values[middle];
@@ -316,9 +224,7 @@ namespace VisioNeo_3D.Services
             Mat thresh = new Mat();
 
             Cv2.CvtColor(img, gray, ColorConversionCodes.BGR2GRAY);
-
             Cv2.GaussianBlur(gray, blur, new CvSize(blurSize, blurSize), 0);
-
             Cv2.Threshold(blur, thresh, thresholdValue, 255, ThresholdTypes.BinaryInv);
 
             Mat kernel = Cv2.GetStructuringElement(MorphShapes.Rect, new CvSize(5, 5));
@@ -415,7 +321,6 @@ namespace VisioNeo_3D.Services
             }
 
             Marshal.Copy(pixels, 0, data.Scan0, bytes);
-
             bmp.UnlockBits(data);
 
             return bmp;

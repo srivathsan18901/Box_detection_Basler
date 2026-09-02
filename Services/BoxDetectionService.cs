@@ -273,15 +273,15 @@ namespace VisioNeo_3D.Services
                     expectedWidthPx_int,
                     expectedLengthPx_int);
 
-                g.DrawRectangle(new Pen(Color.Lime, 2), expectedRect);
+                //g.DrawRectangle(new Pen(Color.Lime, 2), expectedRect);
 
                 // Draw detected box outline (red)
                 PointF[] drawPoints = pts.Select(p => new PointF(p.X, p.Y)).ToArray();
-                g.DrawPolygon(new Pen(Color.Red, 4), drawPoints);
+                g.DrawPolygon(new Pen(Color.Lime, 4), drawPoints);
 
-                // Draw crosshair at center
-                g.DrawLine(Pens.Yellow, frameCenterX_int - 10, frameCenterY_int, frameCenterX_int + 10, frameCenterY_int);
-                g.DrawLine(Pens.Yellow, frameCenterX_int, frameCenterY_int - 10, frameCenterX_int, frameCenterY_int + 10);
+                //// Draw crosshair at center
+                //g.DrawLine(Pens.Yellow, frameCenterX_int - 10, frameCenterY_int, frameCenterX_int + 10, frameCenterY_int);
+                //g.DrawLine(Pens.Yellow, frameCenterX_int, frameCenterY_int - 10, frameCenterX_int, frameCenterY_int + 10);
 
                 // Draw information text
                 string infoText = $"BOX DETECTED ✓\n" +
@@ -296,7 +296,7 @@ namespace VisioNeo_3D.Services
                 g.DrawString(
                     infoText,
                     SystemFonts.DefaultFont,
-                    Brushes.Red,
+                    Brushes.Lime,
                     10,
                     10);
             }

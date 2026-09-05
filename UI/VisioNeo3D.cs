@@ -269,6 +269,7 @@
         {
             plcTimer?.Stop();
             mitsubishiService?.Disconnect();
+            cameraService.Disconnect(mCamera);
             Application.Exit();
         }
 
@@ -894,6 +895,7 @@
                 calibrationMode = false;
                 calibrationPoint1Selected = false;
 
+                Res_PB.Cursor = Cursors.Default;
                 Res_PB.Cursor = Cursors.Default;
                 Res_PB.Invalidate();
 

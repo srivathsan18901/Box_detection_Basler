@@ -116,7 +116,11 @@ namespace VisioNeo_3D.Services
             // Try to get Z from bag center if bag detected
             if (rotatedBag.Size.Width > 0)
             {
-                (X, Y, Z) = ExtractZFromPointCloud(pointCloud, width, height, bagCenter);
+                (X, Y, Z) = GetCenterPoint3D(
+                    pointCloud,
+                    width,
+                    height,
+                    bagCenter);
             }
             else
             {
@@ -128,6 +132,59 @@ namespace VisioNeo_3D.Services
             return (bitmap, bagCenter, rotatedBag, X, Y, Z);
         }
 
+        private (float X, float Y, float Z) GetCenterPoint3D(
+    float[] pointCloud,
+    int width,
+    int height,
+    DrawingPoint center)
+        {
+            if (pointCloud == null || pointCloud.Length == 0)
+            {
+                //logger.Log("Point cloud is null or empty", DrawingColor.Red);
+                return (0, 0, 0);
+            }
+
+            // Validate center pixel
+            if (center.X < 0 || center.X >= width ||
+                center.Y < 0 || center.Y >= height)
+            {
+                //logger.Log(
+                //    $"Center point ({center.X}, {center.Y}) is outside image",
+                //    DrawingColor.Red);
+
+                return (0, 0, 0);
+            }
+
+            // Convert 2D pixel position to point-cloud index
+            int pixelIndex = center.Y * width + center.X;
+            int pointIndex = pixelIndex * 3;
+
+            if (pointIndex + 2 >= pointCloud.Length)
+            {
+                //logger.Log("Point cloud index is outside range", DrawingColor.Red);
+                return (0, 0, 0);
+            }
+
+            float X = pointCloud[pointIndex];
+            float Y = pointCloud[pointIndex + 1];
+            float Z = pointCloud[pointIndex + 2];
+
+            // Validate values
+            if (float.IsNaN(X) || float.IsInfinity(X) ||
+                float.IsNaN(Y) || float.IsInfinity(Y) ||
+                float.IsNaN(Z) || float.IsInfinity(Z) ||
+                Z <= 0)
+            {
+                //logger.Log(
+                //    $"Invalid 3D point at center ({center.X}, {center.Y})",
+                //    DrawingColor.Orange);
+
+                return (0, 0, 0);
+            }
+
+            return (X, Y, Z);
+        }
+
         /// <summary>
         /// Extract X, Y, Z values from point cloud around a given center point
         /// </summary>
@@ -135,8 +192,8 @@ namespace VisioNeo_3D.Services
         {
             if (pointCloud == null || pointCloud.Length == 0)
             {
-                logger.Log("Point cloud is null or empty", DrawingColor.Red);
-                return (0, 0, 0);
+                //logger.Log("Point cloud is null or empty", DrawingColor.Red);
+                //return (0, 0, 0);
             }
 
             List<float> validXValues = new List<float>();
@@ -184,8 +241,8 @@ namespace VisioNeo_3D.Services
 
             if (validZValues.Count == 0)
             {
-                logger.Log($"No valid Z points found around center ({center.X}, {center.Y})", DrawingColor.Orange);
-                return (0, 0, 0);
+                //logger.Log($"No valid Z points found around center ({center.X}, {center.Y})", DrawingColor.Orange);
+                //return (0, 0, 0);
             }
 
             // Use median for stability

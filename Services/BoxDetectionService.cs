@@ -39,6 +39,94 @@ namespace VisioNeo_3D.Services
 
         public double MmPerPixel => mmPerPixel;
 
+        private class ZCalibrationPoint
+        {
+            public double Z { get; set; }
+            public double MmPerPixel { get; set; }
+        }
+
+        private readonly List<ZCalibrationPoint> zCalibrationPoints =  new List<ZCalibrationPoint>();
+
+        public void AddZCalibration(double z, double newMmPerPixel)
+        {
+            if (z <= 0)
+                throw new ArgumentException("Z value must be greater than zero.");
+
+            if (newMmPerPixel <= 0)
+                throw new ArgumentException("MM per pixel must be greater than zero.");
+
+            // If a calibration already exists near this Z,
+            // replace it instead of creating a duplicate.
+            const double zTolerance = 1.0;
+
+            var existing = zCalibrationPoints
+                .FirstOrDefault(p => Math.Abs(p.Z - z) <= zTolerance);
+
+            if (existing != null)
+            {
+                existing.Z = z;
+                existing.MmPerPixel = newMmPerPixel;
+            }
+            else
+            {
+                zCalibrationPoints.Add(new ZCalibrationPoint
+                {
+                    Z = z,
+                    MmPerPixel = newMmPerPixel
+                });
+            }
+
+            // Keep calibration points ordered by Z
+            zCalibrationPoints.Sort((a, b) => a.Z.CompareTo(b.Z));
+
+            // Keep latest value as the current value as well
+            mmPerPixel = newMmPerPixel;
+        }
+
+        public double GetMmPerPixelForZ(double z)
+        {
+            if (z <= 0)
+                return mmPerPixel;
+
+            if (zCalibrationPoints.Count == 0)
+                return mmPerPixel;
+
+            // Only one calibration point
+            if (zCalibrationPoints.Count == 1)
+                return zCalibrationPoints[0].MmPerPixel;
+
+            // Below lowest calibration point
+            if (z <= zCalibrationPoints[0].Z)
+                return zCalibrationPoints[0].MmPerPixel;
+
+            // Above highest calibration point
+            if (z >= zCalibrationPoints[^1].Z)
+                return zCalibrationPoints[^1].MmPerPixel;
+
+            // Find two surrounding calibration points
+            for (int i = 0; i < zCalibrationPoints.Count - 1; i++)
+            {
+                var p1 = zCalibrationPoints[i];
+                var p2 = zCalibrationPoints[i + 1];
+
+                if (z >= p1.Z && z <= p2.Z)
+                {
+                    double zRange = p2.Z - p1.Z;
+
+                    if (Math.Abs(zRange) < 0.000001)
+                        return p1.MmPerPixel;
+
+                    // Linear interpolation
+                    double ratio = (z - p1.Z) / zRange;
+
+                    return p1.MmPerPixel +
+                           ratio * (p2.MmPerPixel - p1.MmPerPixel);
+                }
+            }
+
+            return mmPerPixel;
+        }
+
         public void SetMmPerPixel(double value)
         {
             if (value <= 0)

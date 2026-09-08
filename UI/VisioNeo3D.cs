@@ -265,11 +265,38 @@
             }
         }
 
-        private void closeBtn_Click(object sender, EventArgs e)
+        private async void closeBtn_Click(object sender, EventArgs e)
         {
             plcTimer?.Stop();
             mitsubishiService?.Disconnect();
-            cameraService.Disconnect(mCamera);
+
+            // Properly disconnect camera
+            if (isConnected)
+            {
+                await DisconnectCamera();
+            }
+            else
+            {
+                // Still cleanup camera resources if any
+                try
+                {
+                    if (mCamera != null)
+                    {
+                        if (mCamera.StreamGrabber != null && mCamera.StreamGrabber.IsGrabbing)
+                        {
+                            mCamera.StreamGrabber.Stop();
+                        }
+                        if (mCamera.IsOpen)
+                        {
+                            mCamera.Close();
+                        }
+                        mCamera.Dispose();
+                        mCamera = null;
+                    }
+                }
+                catch { }
+            }
+
             Application.Exit();
         }
 
@@ -282,6 +309,7 @@
         {
             if (!isConnected)
             {
+                // CONNECT flow
                 ShowLoader(true);
                 CnctBtn.Enabled = false;
 
@@ -300,19 +328,111 @@
                     isConnected = true;
                     CnctBtn.Text = "Disconnect";
                     CnctBtn.ForeColor = Color.Red;
+                    CnctBtn.BackColor = Color.LightCoral; // Optional: visual feedback
 
                     ImgModCB.Visible = true;
                     toastbox.Visible = true;
+
+                    logger.Log("Camera connected successfully", Color.Green);
+                }
+                else
+                {
+                    logger.Log("Camera connection failed", Color.Red);
+                    CnctBtn.Text = "Connect";
+                    CnctBtn.ForeColor = Color.Black;
+                    CnctBtn.BackColor = SystemColors.Control;
                 }
             }
             else
             {
-
-                Cap_Btn.Enabled = false;
-                Res_BTN.Enabled = false;
-                cameraService.Disconnect(mCamera);
+                // DISCONNECT flow
+                await DisconnectCamera();
             }
         }
+
+        private async Task DisconnectCamera()
+        {
+            try
+            {
+                // Disable buttons immediately
+                Cap_Btn.Enabled = false;
+                Res_BTN.Enabled = false;
+                CnctBtn.Enabled = false;
+
+                ShowLoader(true);
+
+                await Task.Run(() =>
+                {
+                    // Stop grabbing and disconnect camera
+                    if (mCamera != null)
+                    {
+                        try
+                        {
+                            // Stop stream grabber
+                            if (mCamera.StreamGrabber != null && mCamera.StreamGrabber.IsGrabbing)
+                            {
+                                mCamera.StreamGrabber.Stop();
+                            }
+
+                            // Close and dispose camera
+                            if (mCamera.IsOpen)
+                            {
+                                mCamera.Close();
+                            }
+
+                            mCamera.Dispose();
+                            mCamera = null;
+                        }
+                        catch (Exception ex)
+                        {
+                            // Log but continue with cleanup
+                            System.Diagnostics.Debug.WriteLine($"Camera dispose error: {ex.Message}");
+                        }
+                    }
+                });
+
+                ShowLoader(false);
+                CnctBtn.Enabled = true;
+
+                // Reset UI state
+                isConnected = false;
+                CnctBtn.Text = "Connect";
+                CnctBtn.ForeColor = Color.Black;
+                CnctBtn.BackColor = SystemColors.Control;
+
+                // Clear the image displays
+                if (pictureBox1.Image != null)
+                {
+                    pictureBox1.Image.Dispose();
+                    pictureBox1.Image = null;
+                }
+
+                if (Res_PB.Image != null)
+                {
+                    Res_PB.Image.Dispose();
+                    Res_PB.Image = null;
+                }
+
+                ImgModCB.Visible = false;
+                toastbox.Visible = false;
+
+                // Clear position displays
+                label1.Text = "ΔX : 0.00 mm";
+                label2.Text = "ΔY : 0.00 mm";
+                mm.Text = "ΔZ : 0.00 mm";
+
+                logger.Log("Camera disconnected successfully", Color.Orange);
+            }
+            catch (Exception ex)
+            {
+                logger.Log($"Disconnect error: {ex.Message}", Color.Red);
+            }
+            finally
+            {
+                CnctBtn.Enabled = true;
+            }
+        }
+
 
         private void label1_Click(object sender, EventArgs e)
         {
@@ -353,12 +473,42 @@
 
         private void withoutPLC_Cam()
         {
-            bool ok = withoutPLCService.ConnectCamera();
-
-            if (ok)
+            try
             {
-                mCamera = withoutPLCService.Camera;
-                cameraService.StartGrab(mCamera, ImageGrabbedHandler);
+                // Clean up any existing camera connection first
+                if (mCamera != null)
+                {
+                    try
+                    {
+                        if (mCamera.StreamGrabber != null && mCamera.StreamGrabber.IsGrabbing)
+                        {
+                            mCamera.StreamGrabber.Stop();
+                        }
+                        if (mCamera.IsOpen)
+                        {
+                            mCamera.Close();
+                        }
+                        mCamera.Dispose();
+                        mCamera = null;
+                    }
+                    catch { }
+                }
+
+                bool ok = withoutPLCService.ConnectCamera();
+
+                if (ok)
+                {
+                    mCamera = withoutPLCService.Camera;
+                    cameraService.StartGrab(mCamera, ImageGrabbedHandler);
+                }
+                else
+                {
+                    logger.Log("Failed to connect camera", Color.Red);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Log($"Camera connection error: {ex.Message}", Color.Red);
             }
         }
 

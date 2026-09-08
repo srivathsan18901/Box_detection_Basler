@@ -26,106 +26,25 @@ namespace VisioNeo_3D.Services
         public int ContourCount { get; set; }
         public bool DetectionSucceeded { get; set; }
         public string DetectionMethod { get; set; }
+        public string RejectionReason { get; set; } // NEW: Why box was rejected
     }
 
     public class BoxDetectionService
     {
-        private const double ACTUAL_WIDTH_MM = 300;
-        private const double ACTUAL_LENGTH_MM = 250;
-        private const double ACTUAL_HEIGHT_MM = 300;
+        // ===== FIXED: Correct box dimensions =====
+        private const double ACTUAL_WIDTH_MM = 300;   // Width of the box
+        private const double ACTUAL_LENGTH_MM = 410;  // Length of the box (FIXED)
+        private const double ACTUAL_HEIGHT_MM = 410;  // Height of the box
+
+        // Tolerance for size validation (in percentage)
+        private const double SIZE_TOLERANCE_PERCENT = 0.20; // 20% tolerance
+        private const double ASPECT_RATIO_TOLERANCE = 0.30; // 30% tolerance
+
         private const double DEFAULT_MM_PER_PIXEL = 0.60;
 
         private double mmPerPixel = DEFAULT_MM_PER_PIXEL;
 
         public double MmPerPixel => mmPerPixel;
-
-        private class ZCalibrationPoint
-        {
-            public double Z { get; set; }
-            public double MmPerPixel { get; set; }
-        }
-
-        private readonly List<ZCalibrationPoint> zCalibrationPoints =  new List<ZCalibrationPoint>();
-
-        public void AddZCalibration(double z, double newMmPerPixel)
-        {
-            if (z <= 0)
-                throw new ArgumentException("Z value must be greater than zero.");
-
-            if (newMmPerPixel <= 0)
-                throw new ArgumentException("MM per pixel must be greater than zero.");
-
-            // If a calibration already exists near this Z,
-            // replace it instead of creating a duplicate.
-            const double zTolerance = 1.0;
-
-            var existing = zCalibrationPoints
-                .FirstOrDefault(p => Math.Abs(p.Z - z) <= zTolerance);
-
-            if (existing != null)
-            {
-                existing.Z = z;
-                existing.MmPerPixel = newMmPerPixel;
-            }
-            else
-            {
-                zCalibrationPoints.Add(new ZCalibrationPoint
-                {
-                    Z = z,
-                    MmPerPixel = newMmPerPixel
-                });
-            }
-
-            // Keep calibration points ordered by Z
-            zCalibrationPoints.Sort((a, b) => a.Z.CompareTo(b.Z));
-
-            // Keep latest value as the current value as well
-            mmPerPixel = newMmPerPixel;
-        }
-
-        public double GetMmPerPixelForZ(double z)
-        {
-            if (z <= 0)
-                return mmPerPixel;
-
-            if (zCalibrationPoints.Count == 0)
-                return mmPerPixel;
-
-            // Only one calibration point
-            if (zCalibrationPoints.Count == 1)
-                return zCalibrationPoints[0].MmPerPixel;
-
-            // Below lowest calibration point
-            if (z <= zCalibrationPoints[0].Z)
-                return zCalibrationPoints[0].MmPerPixel;
-
-            // Above highest calibration point
-            if (z >= zCalibrationPoints[^1].Z)
-                return zCalibrationPoints[^1].MmPerPixel;
-
-            // Find two surrounding calibration points
-            for (int i = 0; i < zCalibrationPoints.Count - 1; i++)
-            {
-                var p1 = zCalibrationPoints[i];
-                var p2 = zCalibrationPoints[i + 1];
-
-                if (z >= p1.Z && z <= p2.Z)
-                {
-                    double zRange = p2.Z - p1.Z;
-
-                    if (Math.Abs(zRange) < 0.000001)
-                        return p1.MmPerPixel;
-
-                    // Linear interpolation
-                    double ratio = (z - p1.Z) / zRange;
-
-                    return p1.MmPerPixel +
-                           ratio * (p2.MmPerPixel - p1.MmPerPixel);
-                }
-            }
-
-            return mmPerPixel;
-        }
 
         public void SetMmPerPixel(double value)
         {
@@ -140,20 +59,30 @@ namespace VisioNeo_3D.Services
             // Clone the source bitmap for result drawing
             Bitmap resultBmp = (Bitmap)source.Clone();
 
-            // Convert to OpenCV Mat - process the FULL image
+            // Convert to OpenCV Mat
             Mat src = BitmapConverter.ToMat(source);
 
-            // Log image dimensions for debugging
             System.Diagnostics.Debug.WriteLine($"Image Dimensions: {src.Width} x {src.Height}");
 
             // Convert to grayscale
             Mat gray = new Mat();
             Cv2.CvtColor(src, gray, ColorConversionCodes.BGR2GRAY);
 
-            // Calculate expected dimensions
+            // Calculate expected dimensions in pixels
             double expectedWidthPx = ACTUAL_WIDTH_MM / mmPerPixel;
             double expectedLengthPx = ACTUAL_LENGTH_MM / mmPerPixel;
-            double expectedRatio = ACTUAL_WIDTH_MM / ACTUAL_LENGTH_MM;
+            double expectedRatio = ACTUAL_WIDTH_MM / ACTUAL_LENGTH_MM; // 300/410 = 0.732
+
+            // Calculate min and max allowed dimensions
+            double minAllowedWidthPx = expectedWidthPx * (1 - SIZE_TOLERANCE_PERCENT);
+            double maxAllowedWidthPx = expectedWidthPx * (1 + SIZE_TOLERANCE_PERCENT);
+            double minAllowedLengthPx = expectedLengthPx * (1 - SIZE_TOLERANCE_PERCENT);
+            double maxAllowedLengthPx = expectedLengthPx * (1 + SIZE_TOLERANCE_PERCENT);
+
+            System.Diagnostics.Debug.WriteLine($"=== EXPECTED DIMENSIONS ===");
+            System.Diagnostics.Debug.WriteLine($"Expected W: {expectedWidthPx:F1}px (min: {minAllowedWidthPx:F1}px, max: {maxAllowedWidthPx:F1}px)");
+            System.Diagnostics.Debug.WriteLine($"Expected L: {expectedLengthPx:F1}px (min: {minAllowedLengthPx:F1}px, max: {maxAllowedLengthPx:F1}px)");
+            System.Diagnostics.Debug.WriteLine($"Expected Ratio: {expectedRatio:F3}");
 
             // Calculate frame center
             double frameCenterX = src.Width / 2.0;
@@ -165,10 +94,9 @@ namespace VisioNeo_3D.Services
             double bestScore = double.MinValue;
             int totalContoursFound = 0;
             string bestMethod = "None";
+            string rejectionReason = "";
 
             // ---- TRY MULTIPLE DETECTION METHODS ----
-
-            // Method 1: Adaptive Threshold with different parameters
             for (int blockSize = 11; blockSize <= 31; blockSize += 10)
             {
                 for (int c = 2; c <= 10; c += 4)
@@ -178,10 +106,12 @@ namespace VisioNeo_3D.Services
                     Cv2.GaussianBlur(gray, blurred, new OpenCvSharp.Size(5, 5), 0);
                     Cv2.AdaptiveThreshold(blurred, thresh, 255, AdaptiveThresholdTypes.GaussianC, ThresholdTypes.BinaryInv, blockSize, c);
 
-                    // Try both with and without morphology
                     ProcessThreshold(thresh, ref totalContoursFound, ref bestContour, ref bestBox, ref bestScore,
-                        expectedWidthPx, expectedLengthPx, expectedRatio, frameCenterX, frameCenterY,
-                        "Adaptive_B" + blockSize + "_C" + c, ref bestMethod);
+                        expectedWidthPx, expectedLengthPx, expectedRatio,
+                        minAllowedWidthPx, maxAllowedWidthPx,
+                        minAllowedLengthPx, maxAllowedLengthPx,
+                        frameCenterX, frameCenterY,
+                        "Adaptive_B" + blockSize + "_C" + c, ref bestMethod, ref rejectionReason);
 
                     // With morphology
                     Mat kernel = Cv2.GetStructuringElement(MorphShapes.Rect, new OpenCvSharp.Size(3, 3));
@@ -189,17 +119,23 @@ namespace VisioNeo_3D.Services
                     Cv2.MorphologyEx(morphThresh, morphThresh, MorphTypes.Close, kernel);
                     Cv2.MorphologyEx(morphThresh, morphThresh, MorphTypes.Open, kernel);
                     ProcessThreshold(morphThresh, ref totalContoursFound, ref bestContour, ref bestBox, ref bestScore,
-                        expectedWidthPx, expectedLengthPx, expectedRatio, frameCenterX, frameCenterY,
-                        "Adaptive_Morph_B" + blockSize + "_C" + c, ref bestMethod);
+                        expectedWidthPx, expectedLengthPx, expectedRatio,
+                        minAllowedWidthPx, maxAllowedWidthPx,
+                        minAllowedLengthPx, maxAllowedLengthPx,
+                        frameCenterX, frameCenterY,
+                        "Adaptive_Morph_B" + blockSize + "_C" + c, ref bestMethod, ref rejectionReason);
                 }
             }
 
-            // Method 2: Simple Threshold (Otsu)
+            // Method 2: Otsu Threshold
             Mat otsuThresh = new Mat();
             Cv2.Threshold(gray, otsuThresh, 0, 255, ThresholdTypes.BinaryInv | ThresholdTypes.Otsu);
             ProcessThreshold(otsuThresh, ref totalContoursFound, ref bestContour, ref bestBox, ref bestScore,
-                expectedWidthPx, expectedLengthPx, expectedRatio, frameCenterX, frameCenterY,
-                "Otsu", ref bestMethod);
+                expectedWidthPx, expectedLengthPx, expectedRatio,
+                minAllowedWidthPx, maxAllowedWidthPx,
+                minAllowedLengthPx, maxAllowedLengthPx,
+                frameCenterX, frameCenterY,
+                "Otsu", ref bestMethod, ref rejectionReason);
 
             // Method 3: Canny Edge Detection
             Mat edges = new Mat();
@@ -212,76 +148,31 @@ namespace VisioNeo_3D.Services
                     Cv2.Dilate(edges, edges, kernel, iterations: 2);
                     Cv2.Erode(edges, edges, kernel, iterations: 1);
                     ProcessThreshold(edges, ref totalContoursFound, ref bestContour, ref bestBox, ref bestScore,
-                        expectedWidthPx, expectedLengthPx, expectedRatio, frameCenterX, frameCenterY,
-                        "Canny_T" + threshold1 + "_" + threshold2, ref bestMethod);
+                        expectedWidthPx, expectedLengthPx, expectedRatio,
+                        minAllowedWidthPx, maxAllowedWidthPx,
+                        minAllowedLengthPx, maxAllowedLengthPx,
+                        frameCenterX, frameCenterY,
+                        "Canny_T" + threshold1 + "_" + threshold2, ref bestMethod, ref rejectionReason);
                 }
             }
 
-            // Method 4: Morphological Gradient
-            Mat gradient = new Mat();
-            Mat kernelGrad = Cv2.GetStructuringElement(MorphShapes.Rect, new OpenCvSharp.Size(3, 3));
-            Cv2.MorphologyEx(gray, gradient, MorphTypes.Gradient, kernelGrad);
-            for (int threshVal = 10; threshVal <= 50; threshVal += 10)
+            // If no box detected that matches the expected size, return "No Box"
+            if (bestContour == null || bestScore < 0)
             {
-                Mat gradThresh = new Mat();
-                Cv2.Threshold(gradient, gradThresh, threshVal, 255, ThresholdTypes.Binary);
-                ProcessThreshold(gradThresh, ref totalContoursFound, ref bestContour, ref bestBox, ref bestScore,
-                    expectedWidthPx, expectedLengthPx, expectedRatio, frameCenterX, frameCenterY,
-                    "Gradient_T" + threshVal, ref bestMethod);
-            }
+                System.Diagnostics.Debug.WriteLine($"No valid box detected. Rejection reason: {rejectionReason}");
 
-            // Method 5: Find largest rectangle by area (fallback)
-            Mat simpleThresh = new Mat();
-            Cv2.Threshold(gray, simpleThresh, 127, 255, ThresholdTypes.BinaryInv);
-            Mat kernelClose = Cv2.GetStructuringElement(MorphShapes.Rect, new OpenCvSharp.Size(5, 5));
-            Cv2.MorphologyEx(simpleThresh, simpleThresh, MorphTypes.Close, kernelClose);
-
-            OpenCvSharp.Point[][] allContours;
-            HierarchyIndex[] allHierarchy;
-            Cv2.FindContours(simpleThresh, out allContours, out allHierarchy, RetrievalModes.List, ContourApproximationModes.ApproxSimple);
-
-            foreach (var contour in allContours)
-            {
-                double area = Cv2.ContourArea(contour);
-                if (area < 500) continue;
-
-                RotatedRect rect = Cv2.MinAreaRect(contour);
-                double cWidth = Math.Max(rect.Size.Width, rect.Size.Height);
-                double cLength = Math.Min(rect.Size.Width, rect.Size.Height);
-
-                // Very relaxed criteria for fallback
-                if (cWidth < 50 || cLength < 30) continue;
-
-                double ratio = cWidth / cLength;
-                if (Math.Abs(ratio - expectedRatio) > 0.5) continue;
-
-                if (area > 5000) // Prefer larger areas
-                {
-                    double score = area / 1000 + (1 - Math.Abs(ratio - expectedRatio)) * 100;
-                    if (score > bestScore)
-                    {
-                        bestScore = score;
-                        bestContour = contour;
-                        bestBox = rect;
-                        bestMethod = "Fallback_Largest";
-                    }
-                }
-            }
-
-            // If no box detected, return default result with debug info
-            if (bestContour == null)
-            {
-                System.Diagnostics.Debug.WriteLine($"No box detected. Total contours found: {totalContoursFound}");
-
-                // Draw debug info on result image
                 using (Graphics g = Graphics.FromImage(resultBmp))
                 {
+                    string message = $"NO BOX DETECTED\n";
+                    if (!string.IsNullOrEmpty(rejectionReason))
+                        message += $"Reason: {rejectionReason}\n";
+                    message += $"Contours found: {totalContoursFound}\n" +
+                               $"Expected W: {expectedWidthPx:F1}px\n" +
+                               $"Expected L: {expectedLengthPx:F1}px\n" +
+                               $"Expected Ratio: {expectedRatio:F3}";
+
                     g.DrawString(
-                        $"NO BOX DETECTED\n" +
-                        $"Contours: {totalContoursFound}\n" +
-                        $"MM/PX: {mmPerPixel:F4}\n" +
-                        $"Expected W: {expectedWidthPx:F1}px\n" +
-                        $"Expected L: {expectedLengthPx:F1}px",
+                        message,
                         SystemFonts.DefaultFont,
                         Brushes.Red,
                         10,
@@ -303,7 +194,8 @@ namespace VisioNeo_3D.Services
                     ActualHeightMM = ACTUAL_HEIGHT_MM,
                     ContourCount = totalContoursFound,
                     DetectionSucceeded = false,
-                    DetectionMethod = "None"
+                    DetectionMethod = "None",
+                    RejectionReason = rejectionReason
                 };
             }
 
@@ -317,7 +209,6 @@ namespace VisioNeo_3D.Services
                 angle += 90.0;
             }
 
-            // Normalize angle to -90° to +90°
             while (angle >= 90.0)
                 angle -= 180.0;
             while (angle < -90.0)
@@ -333,49 +224,34 @@ namespace VisioNeo_3D.Services
             int boxCenterX = (int)box.Center.X;
             int boxCenterY = (int)box.Center.Y;
 
-            // Use different variable names to avoid conflicts
             double detectedWidthPx = Math.Max(box.Size.Width, box.Size.Height);
             double detectedLengthPx = Math.Min(box.Size.Width, box.Size.Height);
 
-            // Convert to millimeters using calibrated MM/PX
+            // Convert to millimeters
             double widthMM = detectedWidthPx * mmPerPixel;
             double lengthMM = detectedLengthPx * mmPerPixel;
 
-            // Calculate position offsets in millimeters
+            // Calculate position offsets
             double offsetX = (boxCenterX - frameCenterX_int) * mmPerPixel;
             double offsetY = (boxCenterY - frameCenterY_int) * mmPerPixel;
-
-            // Use the camera Z value (depth from 3D camera)
             double offsetZ = cameraZ;
 
             // Draw results on the image
             using (Graphics g = Graphics.FromImage(resultBmp))
             {
-                // Draw expected box outline (green)
-                int expectedWidthPx_int = (int)(ACTUAL_WIDTH_MM / mmPerPixel);
-                int expectedLengthPx_int = (int)(ACTUAL_LENGTH_MM / mmPerPixel);
-
-                Rectangle expectedRect = new Rectangle(
-                    frameCenterX_int - expectedWidthPx_int / 2,
-                    frameCenterY_int - expectedLengthPx_int / 2,
-                    expectedWidthPx_int,
-                    expectedLengthPx_int);
-
-                //g.DrawRectangle(new Pen(Color.Lime, 2), expectedRect);
-
-                // Draw detected box outline (red)
+                // Draw detected box outline (Lime Green)
                 PointF[] drawPoints = pts.Select(p => new PointF(p.X, p.Y)).ToArray();
                 g.DrawPolygon(new Pen(Color.Lime, 4), drawPoints);
 
-                //// Draw crosshair at center
-                //g.DrawLine(Pens.Yellow, frameCenterX_int - 10, frameCenterY_int, frameCenterX_int + 10, frameCenterY_int);
-                //g.DrawLine(Pens.Yellow, frameCenterX_int, frameCenterY_int - 10, frameCenterX_int, frameCenterY_int + 10);
+                // Draw crosshair at center
+                g.DrawLine(Pens.Yellow, frameCenterX_int - 10, frameCenterY_int, frameCenterX_int + 10, frameCenterY_int);
+                g.DrawLine(Pens.Yellow, frameCenterX_int, frameCenterY_int - 10, frameCenterX_int, frameCenterY_int + 10);
 
                 // Draw information text
                 string infoText = $"BOX DETECTED ✓\n" +
                                   $"Method: {bestMethod}\n" +
-                                  $"W: {widthMM:F1} mm ({detectedWidthPx:F0}px)\n" +
-                                  $"L: {lengthMM:F1} mm ({detectedLengthPx:F0}px)\n" +
+                                  $"Expected: {ACTUAL_WIDTH_MM}x{ACTUAL_LENGTH_MM}mm\n" +
+                                  $"Detected: {widthMM:F1}x{lengthMM:F1}mm\n" +
                                   $"DX: {offsetX:F1} mm\n" +
                                   $"DY: {offsetY:F1} mm\n" +
                                   $"DZ: {offsetZ:F1} mm\n" +
@@ -389,7 +265,6 @@ namespace VisioNeo_3D.Services
                     10);
             }
 
-            // Return the result
             return new BoxDetectionResult
             {
                 ResultImage = resultBmp,
@@ -405,13 +280,18 @@ namespace VisioNeo_3D.Services
                 ActualHeightMM = ACTUAL_HEIGHT_MM,
                 ContourCount = totalContoursFound,
                 DetectionSucceeded = true,
-                DetectionMethod = bestMethod
+                DetectionMethod = bestMethod,
+                RejectionReason = ""
             };
         }
 
         private void ProcessThreshold(Mat thresh, ref int totalContoursFound, ref OpenCvSharp.Point[] bestContour,
-            ref RotatedRect bestBox, ref double bestScore, double expectedWidthPx, double expectedLengthPx,
-            double expectedRatio, double frameCenterX, double frameCenterY, string methodName, ref string bestMethod)
+            ref RotatedRect bestBox, ref double bestScore,
+            double expectedWidthPx, double expectedLengthPx, double expectedRatio,
+            double minAllowedWidthPx, double maxAllowedWidthPx,
+            double minAllowedLengthPx, double maxAllowedLengthPx,
+            double frameCenterX, double frameCenterY,
+            string methodName, ref string bestMethod, ref string rejectionReason)
         {
             OpenCvSharp.Point[][] contours;
             HierarchyIndex[] hierarchy;
@@ -424,7 +304,6 @@ namespace VisioNeo_3D.Services
             {
                 double area = Cv2.ContourArea(contour);
 
-                // Very relaxed minimum area
                 if (area < 300)
                     continue;
 
@@ -433,40 +312,72 @@ namespace VisioNeo_3D.Services
                 double contourWidthPx = Math.Max(rect.Size.Width, rect.Size.Height);
                 double contourLengthPx = Math.Min(rect.Size.Width, rect.Size.Height);
 
-                // Very relaxed minimum size
                 if (contourWidthPx < 30 || contourLengthPx < 20)
                     continue;
 
-                // Very relaxed aspect ratio check
+                // ===== STRICT ASPECT RATIO CHECK =====
                 double ratio = contourWidthPx / contourLengthPx;
-                if (Math.Abs(ratio - expectedRatio) > 0.6)
-                    continue;
+                double ratioDifference = Math.Abs(ratio - expectedRatio) / expectedRatio;
 
-                // Check physical size with very relaxed tolerance
-                double widthDifference = Math.Abs(contourWidthPx - expectedWidthPx) / expectedWidthPx;
-                double lengthDifference = Math.Abs(contourLengthPx - expectedLengthPx) / expectedLengthPx;
-
-                if (widthDifference > 0.70 || lengthDifference > 0.70)
+                if (ratioDifference > ASPECT_RATIO_TOLERANCE)
+                {
+                    // Skip this contour - aspect ratio doesn't match
                     continue;
+                }
+
+                // ===== STRICT SIZE CHECK =====
+                bool widthInRange = (contourWidthPx >= minAllowedWidthPx && contourWidthPx <= maxAllowedWidthPx);
+                bool lengthInRange = (contourLengthPx >= minAllowedLengthPx && contourLengthPx <= maxAllowedLengthPx);
+
+                if (!widthInRange || !lengthInRange)
+                {
+                    // Skip this contour - size doesn't match expected dimensions
+                    string reason = "";
+                    if (!widthInRange) reason += $"Width {contourWidthPx:F1}px outside range [{minAllowedWidthPx:F1}-{maxAllowedWidthPx:F1}]px ";
+                    if (!lengthInRange) reason += $"Length {contourLengthPx:F1}px outside range [{minAllowedLengthPx:F1}-{maxAllowedLengthPx:F1}]px";
+                    System.Diagnostics.Debug.WriteLine($"Rejected by size: {reason}");
+                    continue;
+                }
+
+                // ===== STRICT SIZE VALIDATION IN MM =====
+                double widthMM = contourWidthPx * mmPerPixel;
+                double lengthMM = contourLengthPx * mmPerPixel;
+
+                // Check if the detected size is within 20% of expected
+                double widthTolerance = ACTUAL_WIDTH_MM * 0.20;
+                double lengthTolerance = ACTUAL_LENGTH_MM * 0.20;
+
+                if (Math.Abs(widthMM - ACTUAL_WIDTH_MM) > widthTolerance ||
+                    Math.Abs(lengthMM - ACTUAL_LENGTH_MM) > lengthTolerance)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Rejected by MM size: {widthMM:F1}x{lengthMM:F1}mm (expected {ACTUAL_WIDTH_MM}x{ACTUAL_LENGTH_MM}mm)");
+                    continue;
+                }
 
                 // Calculate distance from center
                 double distanceX = Math.Abs(rect.Center.X - frameCenterX);
                 double distanceY = Math.Abs(rect.Center.Y - frameCenterY);
 
-                // Score the contour - prioritize area and size match
-                double sizeScore = 1.0 - (widthDifference + lengthDifference) / 2.0;
-                double areaScore = Math.Min(area / 10000, 1.0);
-                double centerPenalty = distanceX * 0.2 + distanceY * 0.2;
-                double score = (sizeScore * 5000) + (areaScore * 1000) - centerPenalty;
+                // Score based on how well it matches
+                double widthMatch = 1.0 - Math.Abs(contourWidthPx - expectedWidthPx) / expectedWidthPx;
+                double lengthMatch = 1.0 - Math.Abs(contourLengthPx - expectedLengthPx) / expectedLengthPx;
+                double sizeScore = (widthMatch + lengthMatch) / 2.0;
 
-                if (score > bestScore)
+                double areaScore = Math.Min(area / 10000, 1.0);
+                double centerPenalty = (distanceX / frameCenterX) * 0.3 + (distanceY / frameCenterY) * 0.3;
+
+                double score = (sizeScore * 5000) + (areaScore * 1000) - (centerPenalty * 5000);
+
+                // Only accept if score is positive
+                if (score > 0 && score > bestScore)
                 {
                     bestScore = score;
                     bestContour = contour;
                     bestBox = rect;
                     bestMethod = methodName;
+                    rejectionReason = "";
 
-                    System.Diagnostics.Debug.WriteLine($"New best: {methodName}, Score={score:F0}, Area={area:F0}, W={contourWidthPx:F1}, L={contourLengthPx:F1}");
+                    System.Diagnostics.Debug.WriteLine($"New best: {methodName}, Score={score:F0}, W={contourWidthPx:F1}px ({widthMM:F1}mm), L={contourLengthPx:F1}px ({lengthMM:F1}mm)");
                 }
             }
         }

@@ -23,12 +23,18 @@ namespace VisioNeo_3D.Services
         private double minBagRatio = 0.4;
         private double maxBagRatio = 2.5;
 
-        private DateTime lastNoBagLog = DateTime.MinValue;
+        // NEW: Box detection confidence threshold
+        private const double MIN_BOX_CONFIDENCE = 0.60; // 60% minimum confidence
+        private const double MIN_BOX_AREA_RATIO = 0.3;
 
         // Store the latest point cloud data for Z extraction
         private float[] latestPointCloud;
         private int latestWidth;
         private int latestHeight;
+
+        // Expected box dimensions in mm
+        private const double EXPECTED_WIDTH_MM = 331;
+        private const double EXPECTED_LENGTH_MM = 175;
 
         public VisionProcessingService(LogService log)
         {
@@ -56,6 +62,8 @@ namespace VisioNeo_3D.Services
             DrawingBitmap bitmap = null;
             RotatedRect rotatedBag = new RotatedRect();
             DrawingPoint bagCenter = new DrawingPoint(0, 0);
+            bool boxDetected = false;
+            double boxConfidence = 0;
 
             if (selectedComponent == 1)
             {
@@ -75,10 +83,28 @@ namespace VisioNeo_3D.Services
 
                 bitmap.UnlockBits(bmpData);
 
-                var result = DetectSugarBag(bitmap);
+                var result = DetectWhiteBox(bitmap);
 
                 rotatedBag = result.box;
                 bagCenter = result.center;
+                boxConfidence = result.confidence;
+
+                // Only accept if confidence is high enough
+                if (rotatedBag.Size.Width > 0 && boxConfidence >= MIN_BOX_CONFIDENCE)
+                {
+                    boxDetected = true;
+                    logger.Log($"Box detected with confidence: {boxConfidence:F2}% at center ({bagCenter.X}, {bagCenter.Y})", DrawingColor.Green);
+                }
+                else if (rotatedBag.Size.Width > 0)
+                {
+                    logger.Log($"Box rejected - Low confidence: {boxConfidence:F2}% (threshold: {MIN_BOX_CONFIDENCE:F2}%)", DrawingColor.Orange);
+                    rotatedBag = new RotatedRect();
+                    bagCenter = new DrawingPoint(0, 0);
+                }
+                else
+                {
+                    logger.Log("No box detected in frame", DrawingColor.Orange);
+                }
             }
             else if (selectedComponent == 2)
             {
@@ -108,23 +134,31 @@ namespace VisioNeo_3D.Services
                 bitmap = ConvertDepthToBitmap(depthZ, width, height);
             }
 
-            // ALWAYS extract Z value from point cloud, even without bag detection
             float X = 0;
             float Y = 0;
             float Z = 0;
 
-            // Try to get Z from bag center if bag detected
-            if (rotatedBag.Size.Width > 0)
+            // Extract Z from the box region if box is detected
+            if (boxDetected && rotatedBag.Size.Width > 0)
             {
                 (X, Y, Z) = GetCenterPoint3D(
                     pointCloud,
                     width,
                     height,
                     bagCenter);
+
+                if (Z > 0)
+                {
+                    logger.Log($"Valid 3D point at center ({bagCenter.X}, {bagCenter.Y}) - Z: {Z:F2} mm", DrawingColor.Green);
+                }
+                else
+                {
+                    logger.Log($"Invalid 3D point at center ({bagCenter.X}, {bagCenter.Y})", DrawingColor.Orange);
+                }
             }
             else
             {
-                // If no bag detected, get Z from image center
+                // If no bag detected, get Z from image center as fallback
                 DrawingPoint centerPoint = new DrawingPoint(width / 2, height / 2);
                 (X, Y, Z) = ExtractZFromPointCloud(pointCloud, width, height, centerPoint);
             }
@@ -133,14 +167,13 @@ namespace VisioNeo_3D.Services
         }
 
         private (float X, float Y, float Z) GetCenterPoint3D(
-    float[] pointCloud,
-    int width,
-    int height,
-    DrawingPoint center)
+            float[] pointCloud,
+            int width,
+            int height,
+            DrawingPoint center)
         {
             if (pointCloud == null || pointCloud.Length == 0)
             {
-                //logger.Log("Point cloud is null or empty", DrawingColor.Red);
                 return (0, 0, 0);
             }
 
@@ -148,10 +181,6 @@ namespace VisioNeo_3D.Services
             if (center.X < 0 || center.X >= width ||
                 center.Y < 0 || center.Y >= height)
             {
-                //logger.Log(
-                //    $"Center point ({center.X}, {center.Y}) is outside image",
-                //    DrawingColor.Red);
-
                 return (0, 0, 0);
             }
 
@@ -161,7 +190,6 @@ namespace VisioNeo_3D.Services
 
             if (pointIndex + 2 >= pointCloud.Length)
             {
-                //logger.Log("Point cloud index is outside range", DrawingColor.Red);
                 return (0, 0, 0);
             }
 
@@ -175,10 +203,6 @@ namespace VisioNeo_3D.Services
                 float.IsNaN(Z) || float.IsInfinity(Z) ||
                 Z <= 0)
             {
-                //logger.Log(
-                //    $"Invalid 3D point at center ({center.X}, {center.Y})",
-                //    DrawingColor.Orange);
-
                 return (0, 0, 0);
             }
 
@@ -192,8 +216,7 @@ namespace VisioNeo_3D.Services
         {
             if (pointCloud == null || pointCloud.Length == 0)
             {
-                //logger.Log("Point cloud is null or empty", DrawingColor.Red);
-                //return (0, 0, 0);
+                return (0, 0, 0);
             }
 
             List<float> validXValues = new List<float>();
@@ -241,17 +264,13 @@ namespace VisioNeo_3D.Services
 
             if (validZValues.Count == 0)
             {
-                //logger.Log($"No valid Z points found around center ({center.X}, {center.Y})", DrawingColor.Orange);
-                //return (0, 0, 0);
+                return (0, 0, 0);
             }
 
             // Use median for stability
             float medianX = GetMedian(validXValues);
             float medianY = GetMedian(validYValues);
             float medianZ = GetMedian(validZValues);
-
-            //logger.Log($"3D Measurement -> X:{medianX:F2} mm Y:{medianY:F2} mm Z:{medianZ:F2} mm Valid Points:{validZValues.Count}",
-            //    DrawingColor.Green);
 
             return (medianX, medianY, medianZ);
         }
@@ -273,20 +292,33 @@ namespace VisioNeo_3D.Services
             return values[middle];
         }
 
-        private (RotatedRect box, DrawingPoint center) DetectSugarBag(DrawingBitmap bmp)
+        /// <summary>
+        /// Detect WHITE box (bright object on dark background)
+        /// </summary>
+        private (RotatedRect box, DrawingPoint center, double confidence) DetectWhiteBox(DrawingBitmap bmp)
         {
             Mat img = BitmapConverter.ToMat(bmp);
             Mat gray = new Mat();
             Mat blur = new Mat();
             Mat thresh = new Mat();
 
+            // Convert to grayscale
             Cv2.CvtColor(img, gray, ColorConversionCodes.BGR2GRAY);
-            Cv2.GaussianBlur(gray, blur, new CvSize(blurSize, blurSize), 0);
-            Cv2.Threshold(blur, thresh, thresholdValue, 255, ThresholdTypes.BinaryInv);
 
+            // Apply Gaussian blur to reduce noise
+            Cv2.GaussianBlur(gray, blur, new CvSize(blurSize, blurSize), 0);
+
+            // IMPORTANT: Use Binary (NOT BinaryInv) to detect WHITE objects on dark background
+            // ThresholdTypes.Binary = white objects on dark background
+            // ThresholdTypes.BinaryInv = black objects on bright background
+            Cv2.Threshold(blur, thresh, thresholdValue, 255, ThresholdTypes.Binary);
+
+            // Morphological operations to clean up
             Mat kernel = Cv2.GetStructuringElement(MorphShapes.Rect, new CvSize(5, 5));
             Cv2.MorphologyEx(thresh, thresh, MorphTypes.Close, kernel);
+            Cv2.MorphologyEx(thresh, thresh, MorphTypes.Open, kernel);
 
+            // Find contours
             Cv2.FindContours(
                 thresh,
                 out OpenCvSharp.Point[][] contours,
@@ -294,8 +326,17 @@ namespace VisioNeo_3D.Services
                 RetrievalModes.External,
                 ContourApproximationModes.ApproxSimple);
 
-            double maxArea = 0;
+            double maxConfidence = 0;
             RotatedRect bestRect = new RotatedRect();
+
+            // Calculate image area for reference
+            double imageArea = img.Width * img.Height;
+
+            // Get current MM/PX from the box detection service (passed through the system)
+            double mmPerPixel = 0.6; // Default, will be updated from the service
+            double expectedWidthPx = EXPECTED_WIDTH_MM / mmPerPixel;
+            double expectedLengthPx = EXPECTED_LENGTH_MM / mmPerPixel;
+            double expectedAreaPx = expectedWidthPx * expectedLengthPx;
 
             foreach (var c in contours)
             {
@@ -320,9 +361,14 @@ namespace VisioNeo_3D.Services
                 if (ratio < minBagRatio || ratio > maxBagRatio)
                     continue;
 
-                if (area > maxArea)
+                // Calculate confidence score
+                double confidence = CalculateBoxConfidence(rect, area, imageArea, expectedAreaPx);
+
+                System.Diagnostics.Debug.WriteLine($"Contour: Area={area:F0}, Ratio={ratio:F2}, Confidence={confidence:F2}");
+
+                if (confidence > maxConfidence)
                 {
-                    maxArea = area;
+                    maxConfidence = confidence;
                     bestRect = rect;
                 }
             }
@@ -331,7 +377,56 @@ namespace VisioNeo_3D.Services
                 (int)bestRect.Center.X,
                 (int)bestRect.Center.Y);
 
-            return (bestRect, center);
+            System.Diagnostics.Debug.WriteLine($"Best detection: Confidence={maxConfidence:F2}");
+
+            return (bestRect, center, maxConfidence);
+        }
+
+        /// <summary>
+        /// Calculate confidence score for a detected box
+        /// </summary>
+        private double CalculateBoxConfidence(RotatedRect rect, double area, double imageArea, double expectedAreaPx)
+        {
+            double confidence = 0;
+
+            // 1. Area score - should be close to expected area
+            double areaRatio = area / expectedAreaPx;
+            if (areaRatio > 0.3 && areaRatio < 2.0)
+            {
+                double areaScore = 1.0 - Math.Abs(1.0 - areaRatio);
+                if (areaScore < 0) areaScore = 0;
+                confidence += areaScore * 0.40; // 40% weight
+            }
+
+            // 2. Aspect ratio score
+            double width = Math.Max(rect.Size.Width, rect.Size.Height);
+            double height = Math.Min(rect.Size.Width, rect.Size.Height);
+            double ratio = width / height;
+            double expectedRatio = EXPECTED_WIDTH_MM / EXPECTED_LENGTH_MM;
+
+            double ratioScore = 1.0 - Math.Abs(ratio - expectedRatio) / expectedRatio;
+            if (ratioScore < 0) ratioScore = 0;
+            confidence += ratioScore * 0.30; // 30% weight
+
+            // 3. Rectangle regularity - box should not be too tilted
+            double angle = rect.Angle;
+            double angleScore = 1.0 - Math.Abs(angle) / 45.0;
+            if (angleScore < 0) angleScore = 0;
+            confidence += angleScore * 0.20; // 20% weight
+
+            // 4. Position score - box should be somewhat centered
+            double imageCenterX = 640 / 2.0;
+            double imageCenterY = 480 / 2.0;
+            double distFromCenter = Math.Sqrt(
+                Math.Pow(rect.Center.X - imageCenterX, 2) +
+                Math.Pow(rect.Center.Y - imageCenterY, 2)
+            );
+            double maxDist = Math.Sqrt(Math.Pow(imageCenterX, 2) + Math.Pow(imageCenterY, 2));
+            double positionScore = 1.0 - (distFromCenter / maxDist);
+            if (positionScore < 0) positionScore = 0;
+            confidence += positionScore * 0.10; // 10% weight
+
+            return confidence;
         }
 
         private DrawingBitmap ConvertDepthToBitmap(float[] depthData, int width, int height)

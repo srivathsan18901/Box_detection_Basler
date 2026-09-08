@@ -15,14 +15,22 @@ namespace VisioNeo_3D.Services
         {
             try
             {
+                // Unsubscribe any existing handlers to prevent memory leaks
+                camera.StreamGrabber.ImageGrabbed -= grabHandler;
                 camera.StreamGrabber.ImageGrabbed += grabHandler;
 
-                camera.StreamGrabber.Start(
-                    GrabStrategy.LatestImages,
-                    GrabLoop.ProvidedByStreamGrabber
-                );
-
-                logger.Log("Streaming started", Color.LimeGreen);
+                if (!camera.StreamGrabber.IsGrabbing)
+                {
+                    camera.StreamGrabber.Start(
+                        GrabStrategy.LatestImages,
+                        GrabLoop.ProvidedByStreamGrabber
+                    );
+                    logger.Log("Streaming started", Color.LimeGreen);
+                }
+                else
+                {
+                    logger.Log("Stream already running", Color.Orange);
+                }
             }
             catch (Exception ex)
             {
@@ -30,18 +38,63 @@ namespace VisioNeo_3D.Services
             }
         }
 
-        public void Disconnect(Camera camera)
+        public void StopGrab(Camera camera, EventHandler<ImageGrabbedEventArgs> grabHandler = null)
+        {
+            try
+            {
+                if (camera != null && camera.StreamGrabber != null)
+                {
+                    if (camera.StreamGrabber.IsGrabbing)
+                    {
+                        camera.StreamGrabber.Stop();
+                        logger.Log("Streaming stopped", Color.Orange);
+                    }
+
+                    // Unsubscribe event handler if provided
+                    if (grabHandler != null)
+                    {
+                        camera.StreamGrabber.ImageGrabbed -= grabHandler;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Log("Stop grab error: " + ex.Message, Color.Red);
+            }
+        }
+
+        public void Disconnect(Camera camera, EventHandler<ImageGrabbedEventArgs> grabHandler = null)
         {
             try
             {
                 if (camera != null)
                 {
-                    camera.StreamGrabber.Stop();
-                    camera.Close();
-                    camera.Dispose();
-                }
+                    // Stop grabbing first
+                    if (camera.StreamGrabber != null)
+                    {
+                        if (camera.StreamGrabber.IsGrabbing)
+                        {
+                            camera.StreamGrabber.Stop();
+                        }
 
-                logger.Log("Camera disconnected", Color.Orange);
+                        // Unsubscribe event handler
+                        if (grabHandler != null)
+                        {
+                            camera.StreamGrabber.ImageGrabbed -= grabHandler;
+                        }
+                    }
+
+                    // Close and dispose
+                    if (camera.IsOpen)
+                    {
+                        camera.Close();
+                    }
+
+                    camera.Dispose();
+                    camera = null;
+
+                    logger.Log("Camera disconnected", Color.Orange);
+                }
             }
             catch (Exception ex)
             {

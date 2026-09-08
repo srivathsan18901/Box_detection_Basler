@@ -35,6 +35,10 @@ namespace VisioNeo_3D.Services
         public double ReferenceWidthMM { get; set; }
         public double ReferenceLengthMM { get; set; }
         public double SizeDeviationPercent { get; set; }
+
+        // RX Rotation (tilt around X-axis)
+        public double RX { get; set; }  // Rotation around X-axis in degrees
+        public bool RXValid { get; set; }
     }
 
     public class BoxDetectionService
@@ -49,8 +53,13 @@ namespace VisioNeo_3D.Services
         private const double MAX_SIZE_DEVIATION_PERCENT = 50.0;
         private const double MIN_SIZE_DEVIATION_PERCENT = 5.0; // Minimum deviation to validate
 
-        private const double DEFAULT_MM_PER_PIXEL = 0.60;
+        private const double DEFAULT_MM_PER_PIXEL = 1.28;
         private double mmPerPixel = DEFAULT_MM_PER_PIXEL;
+
+        // Store point cloud data for RX calculation
+        private float[] latestPointCloud;
+        private int latestWidth;
+        private int latestHeight;
 
         public double MmPerPixel => mmPerPixel;
 
@@ -166,6 +175,88 @@ namespace VisioNeo_3D.Services
                 throw new ArgumentException("MM per pixel must be greater than zero.");
 
             mmPerPixel = value;
+        }
+
+        /// <summary>
+        /// Calculate RX (rotation around X-axis) from point cloud data
+        /// RX represents the tilt of the box forward/backward
+        /// </summary>
+        private double CalculateRX(float[] pointCloud, int width, int height, RotatedRect box)
+        {
+            if (pointCloud == null || pointCloud.Length == 0)
+                return 0;
+
+            // Get the four corners of the box in pixel coordinates
+            Point2f[] corners = box.Points();
+
+            // Collect Z values from the corners
+            List<(Point2f point, float z)> cornerData = new List<(Point2f, float)>();
+
+            foreach (var corner in corners)
+            {
+                int px = (int)Math.Round(corner.X);
+                int py = (int)Math.Round(corner.Y);
+
+                if (px < 0 || px >= width || py < 0 || py >= height)
+                    continue;
+
+                int pixelIndex = py * width + px;
+                int pointIndex = pixelIndex * 3;
+
+                if (pointIndex + 2 >= pointCloud.Length)
+                    continue;
+
+                float z = pointCloud[pointIndex + 2];
+
+                if (float.IsNaN(z) || float.IsInfinity(z) || z <= 0)
+                    continue;
+
+                cornerData.Add((corner, z));
+            }
+
+            if (cornerData.Count < 4)
+                return 0;
+
+            // Order corners by position
+            var sortedCorners = cornerData
+                .OrderBy(c => c.point.Y)
+                .ThenBy(c => c.point.X)
+                .ToList();
+
+            // Calculate RX (tilt around X-axis)
+            // RX is the difference in Z between top and bottom of the box
+            // Positive RX = box tilted forward (top closer to camera)
+            // Negative RX = box tilted backward (top further from camera)
+
+            // Get average Z of top corners (top of box = lower Y values)
+            double topZ = sortedCorners.Take(2).Average(c => c.z);
+
+            // Get average Z of bottom corners (bottom of box = higher Y values)
+            double bottomZ = sortedCorners.Skip(2).Take(2).Average(c => c.z);
+
+            // Calculate the height of the box in pixels (in Y direction)
+            double boxHeightPx = Math.Min(box.Size.Width, box.Size.Height);
+
+            if (boxHeightPx == 0)
+                return 0;
+
+            // Calculate RX angle in degrees
+            // Using arctan of (Z difference / physical height in mm)
+            double heightMM = boxHeightPx * mmPerPixel;
+            double deltaZ = bottomZ - topZ;
+
+            // RX angle = arctan(deltaZ / heightMM)
+            double rx = Math.Atan2(deltaZ, heightMM) * 180.0 / Math.PI;
+
+            // Clamp to reasonable range
+            rx = Math.Clamp(rx, -45.0, 45.0);
+
+            System.Diagnostics.Debug.WriteLine($"RX Calculation:");
+            System.Diagnostics.Debug.WriteLine($"  Top Z: {topZ:F2}mm, Bottom Z: {bottomZ:F2}mm");
+            System.Diagnostics.Debug.WriteLine($"  Delta Z: {deltaZ:F2}mm, Height: {heightMM:F2}mm");
+            System.Diagnostics.Debug.WriteLine($"  RX: {rx:F2}°");
+
+            return rx;
         }
 
         public BoxDetectionResult DetectBox(Bitmap source, float cameraZ)
@@ -293,14 +384,16 @@ namespace VisioNeo_3D.Services
                     ValidationMessage = "No box contour found",
                     ReferenceWidthMM = referenceWidthMM,
                     ReferenceLengthMM = referenceLengthMM,
-                    SizeDeviationPercent = 100
+                    SizeDeviationPercent = 100,
+                    RX = 0,
+                    RXValid = false
                 };
             }
 
             // Process the detected box
             RotatedRect box = bestBox;
 
-            // Calculate angle
+            // Calculate angle (RZ - rotation around Z-axis)
             double angle = box.Angle;
             if (box.Size.Width < box.Size.Height)
             {
@@ -330,6 +423,25 @@ namespace VisioNeo_3D.Services
             double offsetY = (boxCenterY - frameCenterY_int) * mmPerPixel;
             double offsetZ = cameraZ;
 
+            // Calculate RX (rotation around X-axis) from point cloud data
+            double rx = 0;
+            bool rxValid = false;
+
+            // Try to calculate RX if point cloud data is available
+            if (latestPointCloud != null && latestWidth > 0 && latestHeight > 0)
+            {
+                rx = CalculateRX(latestPointCloud, latestWidth, latestHeight, box);
+                rxValid = true;
+            }
+            else
+            {
+                // If no point cloud data, estimate RX from the 2D image
+                // Using perspective distortion of the box
+                rx = EstimateRXFrom2D(pts, widthMM, lengthMM);
+                rxValid = true;
+                System.Diagnostics.Debug.WriteLine($"RX estimated from 2D: {rx:F2}°");
+            }
+
             // Calculate size deviation
             double widthDeviation = Math.Abs(widthMM - referenceWidthMM) / referenceWidthMM * 100;
             double lengthDeviation = Math.Abs(lengthMM - referenceLengthMM) / referenceLengthMM * 100;
@@ -346,6 +458,7 @@ namespace VisioNeo_3D.Services
             System.Diagnostics.Debug.WriteLine($"Validation: {validationMsg}");
             System.Diagnostics.Debug.WriteLine($"  Width: {widthMM:F1}mm (deviation {widthDeviation:F1}%)");
             System.Diagnostics.Debug.WriteLine($"  Length: {lengthMM:F1}mm (deviation {lengthDeviation:F1}%)");
+            System.Diagnostics.Debug.WriteLine($"  RX: {rx:F2}°");
 
             // If size is not valid, treat as no detection
             if (!isValidSize)
@@ -387,7 +500,9 @@ namespace VisioNeo_3D.Services
                     ValidationMessage = validationMsg,
                     ReferenceWidthMM = referenceWidthMM,
                     ReferenceLengthMM = referenceLengthMM,
-                    SizeDeviationPercent = avgDeviation
+                    SizeDeviationPercent = avgDeviation,
+                    RX = rx,
+                    RXValid = rxValid
                 };
             }
 
@@ -397,6 +512,8 @@ namespace VisioNeo_3D.Services
                 PointF[] drawPoints = pts.Select(p => new PointF(p.X, p.Y)).ToArray();
                 g.DrawPolygon(new Pen(Color.Lime, 4), drawPoints);
 
+                string rxText = rxValid ? $"RX: {rx:F1}°" : "RX: N/A";
+
                 string infoText = $"BOX DETECTED ✓\n" +
                                   $"Method: {bestMethod}\n" +
                                   $"W: {widthMM:F1} mm ({detectedWidthPx:F0}px)\n" +
@@ -404,7 +521,8 @@ namespace VisioNeo_3D.Services
                                   $"DX: {offsetX:F1} mm\n" +
                                   $"DY: {offsetY:F1} mm\n" +
                                   $"DZ: {offsetZ:F1} mm\n" +
-                                  $"ANGLE: {angle:F1}°\n" +
+                                  $"RZ: {angle:F1}°\n" +
+                                  $"{rxText}\n" +
                                   $"Deviation: {avgDeviation:F1}%";
 
                 g.DrawString(
@@ -435,8 +553,59 @@ namespace VisioNeo_3D.Services
                 ValidationMessage = validationMsg,
                 ReferenceWidthMM = referenceWidthMM,
                 ReferenceLengthMM = referenceLengthMM,
-                SizeDeviationPercent = avgDeviation
+                SizeDeviationPercent = avgDeviation,
+                RX = rx,
+                RXValid = rxValid
             };
+        }
+
+        /// <summary>
+        /// Estimate RX (tilt around X-axis) from 2D image perspective distortion
+        /// This is used when point cloud data is not available
+        /// </summary>
+        private double EstimateRXFrom2D(Point2f[] corners, double widthMM, double lengthMM)
+        {
+            try
+            {
+                // Order corners: Top-Left, Top-Right, Bottom-Right, Bottom-Left
+                var sorted = corners.OrderBy(p => p.Y).ThenBy(p => p.X).ToList();
+
+                if (sorted.Count < 4)
+                    return 0;
+
+                // Top edge length
+                double topEdge = Math.Sqrt(
+                    Math.Pow(sorted[0].X - sorted[1].X, 2) +
+                    Math.Pow(sorted[0].Y - sorted[1].Y, 2));
+
+                // Bottom edge length
+                double bottomEdge = Math.Sqrt(
+                    Math.Pow(sorted[2].X - sorted[3].X, 2) +
+                    Math.Pow(sorted[2].Y - sorted[3].Y, 2));
+
+                // If bottom edge is longer than top edge, box is tilted away
+                // If top edge is longer than bottom edge, box is tilted toward camera
+                double ratio = bottomEdge / topEdge;
+
+                // Estimate RX based on perspective distortion
+                double rx = 0;
+                if (ratio > 1.0)
+                {
+                    // Tilted away (top closer to camera, bottom further)
+                    rx = -Math.Min((ratio - 1.0) * 30.0, 30.0);
+                }
+                else if (ratio < 1.0)
+                {
+                    // Tilted toward (top further, bottom closer)
+                    rx = Math.Min((1.0 - ratio) * 30.0, 30.0);
+                }
+
+                return Math.Clamp(rx, -45.0, 45.0);
+            }
+            catch
+            {
+                return 0;
+            }
         }
 
         private void ProcessThreshold(Mat thresh, ref int totalContoursFound, ref OpenCvSharp.Point[] bestContour,
@@ -520,6 +689,16 @@ namespace VisioNeo_3D.Services
             if (heightMM > 0) referenceHeightMM = heightMM;
 
             System.Diagnostics.Debug.WriteLine($"Reference dimensions updated: {referenceWidthMM}x{referenceLengthMM}x{referenceHeightMM}mm");
+        }
+
+        /// <summary>
+        /// Update point cloud data for RX calculation
+        /// </summary>
+        public void UpdatePointCloud(float[] pointCloud, int width, int height)
+        {
+            latestPointCloud = pointCloud;
+            latestWidth = width;
+            latestHeight = height;
         }
     }
 }

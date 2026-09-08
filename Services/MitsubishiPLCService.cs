@@ -116,7 +116,9 @@ namespace VisioNeo_3D.Services
             return _isConnected;
         }
 
-        public bool SendXYZ(string xReg, string yReg, string zReg, string angleReg, double x, double y, double z, double angle)
+        public bool SendXYZ(string xReg, string yReg, string zReg, string angleReg,
+                            double x, double y, double z, double angle,
+                            string confirmReg = null, bool success = false)
         {
             lock (_lockObject)
             {
@@ -135,30 +137,81 @@ namespace VisioNeo_3D.Services
                     zReg = FormatAddress(zReg);
                     angleReg = FormatAddress(angleReg);
 
-                    if (xReg == null ||
-                        yReg == null ||
-                        zReg == null ||
-                        angleReg == null)
+                    if (xReg == null || yReg == null || zReg == null || angleReg == null)
                     {
                         return false;
                     }
 
+                    // Write all values
                     var r1 = plc.Write(xReg, xValue);
                     var r2 = plc.Write(yReg, yValue);
                     var r3 = plc.Write(zReg, zValue);
                     var r4 = plc.Write(angleReg, angleValue);
 
-                    if (!r1.IsSuccess)
+                    if (!r1.IsSuccess || !r2.IsSuccess || !r3.IsSuccess || !r4.IsSuccess)
                     {
                         _isConnected = false;
                         return false;
                     }
 
-                    return r1.IsSuccess && r2.IsSuccess && r3.IsSuccess;
+                    // Write confirmation signal if register is provided
+                    if (!string.IsNullOrEmpty(confirmReg))
+                    {
+                        confirmReg = FormatAddress(confirmReg);
+                        if (confirmReg != null)
+                        {
+                            // Write 1 for success, 0 for failure
+                            short confirmValue = success ? (short)1 : (short)0;
+                            var r5 = plc.Write(confirmReg, confirmValue);
+
+                            // Return false only if confirmation write fails
+                            if (!r5.IsSuccess)
+                            {
+                                Console.WriteLine($"Failed to write confirmation to {confirmReg}: {r5.Message}");
+                                return false;
+                            }
+                        }
+                    }
+
+                    return true;
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"SendXYZ Error: {ex.Message}");
+                    _isConnected = false;
+                    return false;
+                }
+            }
+        }
+
+        // NEW: Method to set confirmation signal only
+        public bool SetConfirmation(string confirmReg, bool success)
+        {
+            lock (_lockObject)
+            {
+                if (!CheckPLC())
+                    return false;
+
+                try
+                {
+                    confirmReg = FormatAddress(confirmReg);
+                    if (string.IsNullOrEmpty(confirmReg))
+                        return false;
+
+                    short confirmValue = success ? (short)1 : (short)0;
+                    var result = plc.Write(confirmReg, confirmValue);
+
+                    if (!result.IsSuccess)
+                    {
+                        _isConnected = false;
+                        return false;
+                    }
+
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"SetConfirmation Error: {ex.Message}");
                     _isConnected = false;
                     return false;
                 }
@@ -200,6 +253,4 @@ namespace VisioNeo_3D.Services
             }
         }
     }
-
-
 }

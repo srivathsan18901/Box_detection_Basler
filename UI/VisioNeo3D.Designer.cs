@@ -70,6 +70,8 @@
             ReadPlc_Btn = new Button();
             writePLC_Btn = new Button();
             Res_BTN = new Button();
+            Confirm_Reg_TB = new TextBox();
+            label3 = new Label();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox2).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBox3).BeginInit();
@@ -263,6 +265,8 @@
             // panel1
             // 
             panel1.BackColor = Color.Transparent;
+            panel1.Controls.Add(Confirm_Reg_TB);
+            panel1.Controls.Add(label3);
             panel1.Controls.Add(Angle_Reg_TB);
             panel1.Controls.Add(label12);
             panel1.Controls.Add(SavePLC_Btn);
@@ -505,6 +509,26 @@
             Res_BTN.UseVisualStyleBackColor = false;
             Res_BTN.Click += Res_BTN_Click;
             // 
+            // Confirm_Reg_TB
+            // 
+            Confirm_Reg_TB.BorderStyle = BorderStyle.FixedSingle;
+            Confirm_Reg_TB.Location = new Point(167, 217);
+            Confirm_Reg_TB.Name = "Confirm_Reg_TB";
+            Confirm_Reg_TB.Size = new Size(157, 23);
+            Confirm_Reg_TB.TabIndex = 33;
+            // 
+            // label3
+            // 
+            label3.AutoSize = true;
+            label3.BackColor = Color.Transparent;
+            label3.Font = new Font("Segoe UI Semibold", 12F, FontStyle.Bold | FontStyle.Italic, GraphicsUnit.Point, 0);
+            label3.ForeColor = SystemColors.Highlight;
+            label3.Location = new Point(18, 215);
+            label3.Name = "label3";
+            label3.Size = new Size(124, 21);
+            label3.TabIndex = 32;
+            label3.Text = "Confirm Trigger";
+            // 
             // VisioNeo3D
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -594,5 +618,7 @@
         private TextBox Angle_Reg_TB;
         private Label label12;
         private Button Res_BTN;
+        private TextBox Confirm_Reg_TB;
+        private Label label3;
     }
 }

@@ -93,17 +93,17 @@ namespace VisioNeo_3D.Services
                 if (rotatedBag.Size.Width > 0 && boxConfidence >= MIN_BOX_CONFIDENCE)
                 {
                     boxDetected = true;
-                    logger.Log($"Box detected with confidence: {boxConfidence:F2}% at center ({bagCenter.X}, {bagCenter.Y})", DrawingColor.Green);
+                    //logger.Log($"Box detected with confidence: {boxConfidence:F2}% at center ({bagCenter.X}, {bagCenter.Y})", DrawingColor.Green);
                 }
                 else if (rotatedBag.Size.Width > 0)
                 {
-                    logger.Log($"Box rejected - Low confidence: {boxConfidence:F2}% (threshold: {MIN_BOX_CONFIDENCE:F2}%)", DrawingColor.Orange);
+                    //logger.Log($"Box rejected - Low confidence: {boxConfidence:F2}% (threshold: {MIN_BOX_CONFIDENCE:F2}%)", DrawingColor.Orange);
                     rotatedBag = new RotatedRect();
                     bagCenter = new DrawingPoint(0, 0);
                 }
                 else
                 {
-                    logger.Log("No box detected in frame", DrawingColor.Orange);
+                    //logger.Log("No box detected in frame", DrawingColor.Orange);
                 }
             }
             else if (selectedComponent == 2)
@@ -149,11 +149,11 @@ namespace VisioNeo_3D.Services
 
                 if (Z > 0)
                 {
-                    logger.Log($"Valid 3D point at center ({bagCenter.X}, {bagCenter.Y}) - Z: {Z:F2} mm", DrawingColor.Green);
+                    //logger.Log($"Valid 3D point at center ({bagCenter.X}, {bagCenter.Y}) - Z: {Z:F2} mm", DrawingColor.Green);
                 }
                 else
                 {
-                    logger.Log($"Invalid 3D point at center ({bagCenter.X}, {bagCenter.Y})", DrawingColor.Orange);
+                    //logger.Log($"Invalid 3D point at center ({bagCenter.X}, {bagCenter.Y})", DrawingColor.Orange);
                 }
             }
             else

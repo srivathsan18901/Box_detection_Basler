@@ -102,6 +102,7 @@
             Y_Reg_TB.Text = plcConfig.YReg;
             Z_Reg_TB.Text = plcConfig.ZReg;
             Angle_Reg_TB.Text = plcConfig.AngleReg;
+            Confirm_Reg_TB.Text = plcConfig.ConfirmReg ?? "D150";
 
             bool connected =
                 await Task.Run(() =>
@@ -562,101 +563,104 @@
             {
                 if (latestFrame == null)
                 {
-                    logger.Log(
-                        "No image available for capture",
-                        Color.Red);
-
+                    logger.Log("No image available for capture", Color.Red);
                     return;
                 }
 
-                logger.Log(
-                    "Capture triggered - Processing image...",
-                    Color.Blue);
+                logger.Log("Capture triggered - Processing image...", Color.Blue);
 
-                // Clone latest frame so the camera thread
-                // cannot modify it while processing
-                using Bitmap captureFrame =
-                    (Bitmap)latestFrame.Clone();
+                using Bitmap captureFrame = (Bitmap)latestFrame.Clone();
 
-                var boxResult =
-                    boxDetectionService.DetectBox(
-                        captureFrame,
-                        latestZ);
+                var boxResult = boxDetectionService.DetectBox(captureFrame, latestZ);
 
-                logger.Log(
-                    $"Actual Box Size : " +
-                    $"W={boxResult.ActualWidthMM:F1} mm  " +
-                    $"L={boxResult.ActualLengthMM:F1} mm  " +
-                    $"H={boxResult.ActualHeightMM:F1} mm " +
-                    $"Angle:{boxResult.Angle:F1}°",
-                    Color.Blue);
-
-                logger.Log(
-                    $"Detected Box Size : " +
-                    $"W={boxResult.WidthMM:F2} mm  " +
-                    $"L={boxResult.LengthMM:F2} mm  " +
-                    $"H={boxResult.HeightMM:F2} mm " +
-                    $"Angle:{boxResult.Angle:F2}°",
-                    Color.DarkGreen);
-
-                logger.Log(
-                    $"POSITION -> " +
-                    $"X:{boxResult.OffsetX:F2} mm  " +
-                    $"Y:{boxResult.OffsetY:F2} mm  " +
-                    $"Z:{boxResult.OffsetZ:F2} mm  " +
-                    $"ANGLE:{boxResult.Angle:F2}°",
-                    Color.Green);
+                // Log results
+                //logger.Log($"Actual Box Size: W={boxResult.ActualWidthMM:F1}mm L={boxResult.ActualLengthMM:F1}mm H={boxResult.ActualHeightMM:F1}mm Angle:{boxResult.Angle:F1}°", Color.Blue);
+                //logger.Log($"Detected Box Size: W={boxResult.WidthMM:F2}mm L={boxResult.LengthMM:F2}mm H={boxResult.HeightMM:F2}mm Angle:{boxResult.Angle:F2}°", Color.DarkGreen);
+                logger.Log($"POSITION -> X:{boxResult.OffsetX:F2}mm Y:{boxResult.OffsetY:F2}mm Z:{boxResult.OffsetZ:F2}mm ANGLE:{boxResult.Angle:F2}°", Color.Green);
 
                 // Update UI
                 BeginInvoke(new Action(() =>
                 {
-                    label1.Text =
-                        $"ΔX : {boxResult.OffsetX:F2} mm";
-
-                    label2.Text =
-                        $"ΔY : {boxResult.OffsetY:F2} mm";
-
-                    mm.Text =
-                        $"ΔZ : {boxResult.OffsetZ:F2} mm";
+                    label1.Text = $"ΔX : {boxResult.OffsetX:F2} mm";
+                    label2.Text = $"ΔY : {boxResult.OffsetY:F2} mm";
+                    mm.Text = $"ΔZ : {boxResult.OffsetZ:F2} mm";
 
                     Res_PB.Image?.Dispose();
-
-                    Res_PB.Image =
-                        boxResult.ResultImage;
+                    Res_PB.Image = boxResult.ResultImage;
                 }));
 
-                // Send XYZ to PLC
-                bool sent = mitsubishiService.SendXYZ(
-    plcConfig.XReg,
-    plcConfig.YReg,
-    plcConfig.ZReg,
-    plcConfig.AngleReg,
-    boxResult.OffsetX,
-    boxResult.OffsetY,
-    boxResult.OffsetZ,
-    boxResult.Angle);
+                // ===== SEND XYZ AND CONFIRMATION TO PLC =====
+                bool sent = false;
 
-                if (sent)
+                if (boxResult.DetectionSucceeded)
                 {
-                    logger.Log(
-                        $"XYZ Sent -> " +
-                        $"X:{boxResult.OffsetX:F2}  " +
-                        $"Y:{boxResult.OffsetY:F2}  " +
-                        $"Z:{boxResult.OffsetZ:F2}" + $"Angle:{boxResult.Angle:F1}°",
-                        Color.Green);
+                    // Send XYZ with confirmation = 1 (success)
+                    sent = mitsubishiService.SendXYZ(
+                        plcConfig.XReg,
+                        plcConfig.YReg,
+                        plcConfig.ZReg,
+                        plcConfig.AngleReg,
+                        boxResult.OffsetX,
+                        boxResult.OffsetY,
+                        boxResult.OffsetZ,
+                        boxResult.Angle,
+                        plcConfig.ConfirmReg,  // Pass confirmation register
+                        true                    // Success = true
+                    );
+
+                    if (sent)
+                    {
+                        logger.Log($"XYZ Sent -> X:{boxResult.OffsetX:F2} Y:{boxResult.OffsetY:F2} Z:{boxResult.OffsetZ:F2} Angle:{boxResult.Angle:F1}°", Color.Green);
+                        logger.Log($"Confirmation sent to {plcConfig.ConfirmReg} = 1", Color.Green);
+                    }
+                    else
+                    {
+                        logger.Log("Failed to send XYZ to PLC", Color.Red);
+
+                        // Try to send confirmation as 0 on failure
+                        try
+                        {
+                            mitsubishiService.SetConfirmation(plcConfig.ConfirmReg, false);
+                            logger.Log($"Confirmation sent to {plcConfig.ConfirmReg} = 0 (failure)", Color.Orange);
+                        }
+                        catch { }
+                    }
                 }
                 else
                 {
-                    logger.Log(
-                        "Failed to send XYZ to PLC",
-                        Color.Red);
+                    // Box not detected - send confirmation = 0
+                    logger.Log("Box not detected - sending confirmation 0", Color.Orange);
+
+                    sent = mitsubishiService.SendXYZ(
+                        plcConfig.XReg,
+                        plcConfig.YReg,
+                        plcConfig.ZReg,
+                        plcConfig.AngleReg,
+                        0, 0, 0, 0,  // Send zeros
+                        plcConfig.ConfirmReg,
+                        false  // Success = false
+                    );
+
+                    if (sent)
+                    {
+                        logger.Log($"Confirmation sent to {plcConfig.ConfirmReg} = 0 (no box detected)", Color.Orange);
+                    }
+                    else
+                    {
+                        logger.Log("Failed to send confirmation to PLC", Color.Red);
+                    }
                 }
             }
             catch (Exception ex)
             {
-                logger.Log(
-                    $"Capture Processing Error: {ex.Message}",
-                    Color.Red);
+                logger.Log($"Capture Processing Error: {ex.Message}", Color.Red);
+
+                // Try to send confirmation = 0 on error
+                try
+                {
+                    mitsubishiService.SetConfirmation(plcConfig.ConfirmReg, false);
+                }
+                catch { }
             }
             finally
             {
@@ -722,7 +726,7 @@
             plcConfig.YReg = Y_Reg_TB.Text.Trim();
             plcConfig.ZReg = Z_Reg_TB.Text.Trim();
             plcConfig.AngleReg = Angle_Reg_TB.Text.Trim();
-
+            plcConfig.ConfirmReg = Confirm_Reg_TB.Text.Trim();
             plcConfigService.Save(plcConfig);
 
             logger.Log("PLC Configuration Saved", Color.Green);

@@ -9,5 +9,7 @@
         public string YReg { get; set; } = "D102";
         public string ZReg { get; set; } = "D104";
         public string AngleReg { get; set; } = "D105";
+
+        public string ConfirmReg { get; set; } = "D150";
     }
 }
